@@ -18,14 +18,3 @@ applications:
         paths:
           - node_modules/**/*
           - .next/cache/**/*
-    environmentVariables:
-      - NEXTAUTH_URL
-      - NEXTAUTH_SECRET
-      - GOOGLE_CLIENT_ID
-      - GOOGLE_CLIENT_SECRET
-      - APPLE_ID
-      - APPLE_TEAM_ID
-      - APPLE_PRIVATE_KEY
-      - APPLE_KEY_ID
-      - DATABASE_URL
-      - JWT_SECRET
