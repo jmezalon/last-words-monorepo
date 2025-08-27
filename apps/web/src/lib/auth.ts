@@ -32,11 +32,22 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   console.warn('Google provider missing GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET');
 }
 
-// Apple requires a signed clientSecret (ES256)
-const { APPLE_ID, APPLE_TEAM_ID, APPLE_PRIVATE_KEY, APPLE_KEY_ID } =
-  process.env;
+// Apple requires a signed clientSecret (ES256). Disabled unless ENABLE_APPLE=true
+const {
+  APPLE_ID,
+  APPLE_TEAM_ID,
+  APPLE_PRIVATE_KEY,
+  APPLE_KEY_ID,
+  ENABLE_APPLE,
+} = process.env;
 
-if (APPLE_ID && APPLE_TEAM_ID && APPLE_PRIVATE_KEY && APPLE_KEY_ID) {
+if (
+  ENABLE_APPLE === 'true' &&
+  APPLE_ID &&
+  APPLE_TEAM_ID &&
+  APPLE_PRIVATE_KEY &&
+  APPLE_KEY_ID
+) {
   try {
     const now = Math.floor(Date.now() / 1000);
     const appleClientSecret = jwt.sign(
@@ -65,7 +76,9 @@ if (APPLE_ID && APPLE_TEAM_ID && APPLE_PRIVATE_KEY && APPLE_KEY_ID) {
     console.warn('Failed to configure Apple provider:', e);
   }
 } else {
-  console.warn('Apple provider env vars incomplete; skipping Apple provider');
+  console.warn(
+    'Apple provider disabled or env vars incomplete; skipping Apple provider'
+  );
 }
 
 const baseOptions: NextAuthOptions = {
