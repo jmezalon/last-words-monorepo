@@ -11,10 +11,9 @@ applications:
           commands:
             - npm run build
       artifacts:
-        baseDirectory: .next
+        baseDirectory: out
         files:
           - '**/*'
-        name: myApp
       cache:
         paths:
           - node_modules/**/*
