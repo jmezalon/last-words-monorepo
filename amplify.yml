@@ -10,7 +10,8 @@ applications:
         preBuild:
           commands:
             - npm ci
-            - npx prisma generate
+            - rm -rf node_modules/.prisma
+            - npx prisma generate --force
             - npx prisma db push
         build:
           commands:
