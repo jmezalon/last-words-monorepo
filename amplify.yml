@@ -23,4 +23,3 @@ applications:
       cache:
         paths:
           - node_modules/**/*
-          - .next/cache/**/*
