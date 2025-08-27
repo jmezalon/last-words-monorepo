@@ -3,51 +3,14 @@ import GoogleProvider from 'next-auth/providers/google';
 import AppleProvider from 'next-auth/providers/apple';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
-
-// Generate Apple client secret JWT
-function generateAppleClientSecret() {
-  // Skip during build time when env vars aren't available
-  if (
-    !process.env.APPLE_PRIVATE_KEY ||
-    !process.env.APPLE_TEAM_ID ||
-    !process.env.APPLE_ID ||
-    !process.env.APPLE_KEY_ID
-  ) {
-    return 'build-time-placeholder';
-  }
-
-  try {
-    const now = Math.floor(Date.now() / 1000);
-    const payload = {
-      iss: process.env.APPLE_TEAM_ID,
-      iat: now,
-      exp: now + 86400 * 180, // 180 days
-      aud: 'https://appleid.apple.com',
-      sub: process.env.APPLE_ID,
-    };
-
-    return jwt.sign(payload, process.env.APPLE_PRIVATE_KEY!, {
-      algorithm: 'ES256',
-      header: {
-        alg: 'ES256',
-        kid: process.env.APPLE_KEY_ID,
-      },
-    });
-  } catch (error) {
-    console.warn('Apple client secret generation failed during build:', error);
-    return 'build-time-placeholder';
-  }
-}
 
 declare module 'next-auth' {
   interface Session {
     user: {
       id: string;
       name?: string | null;
-      email?: string | null;
       image?: string | null;
     };
   }
@@ -61,11 +24,8 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
     AppleProvider({
-      clientId: process.env.APPLE_ID!,
-      clientSecret:
-        process.env.NODE_ENV === 'production' && process.env.APPLE_PRIVATE_KEY
-          ? generateAppleClientSecret()
-          : 'build-time-placeholder',
+      clientId: process.env.APPLE_ID || 'placeholder',
+      clientSecret: 'build-time-placeholder',
     }),
   ],
   session: {
