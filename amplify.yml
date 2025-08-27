@@ -5,13 +5,11 @@ applications:
       phases:
         preBuild:
           commands:
-            - cd apps/web
-            - npm ci
-            - npx prisma generate
+            - cd apps/web && npm ci
+            - cd apps/web && npx prisma generate
         build:
           commands:
-            - cd apps/web
-            - npm run build
+            - cd apps/web && npm run build
       artifacts:
         baseDirectory: apps/web/.next
         files:
