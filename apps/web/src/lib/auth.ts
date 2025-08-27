@@ -68,8 +68,7 @@ if (APPLE_ID && APPLE_TEAM_ID && APPLE_PRIVATE_KEY && APPLE_KEY_ID) {
   console.warn('Apple provider env vars incomplete; skipping Apple provider');
 }
 
-export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
+const baseOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   // If running behind proxies, ensure NEXTAUTH_URL is set in env
   providers,
@@ -95,3 +94,9 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
   },
 };
+
+// Optionally disable Prisma adapter to isolate DB issues
+export const authOptions: NextAuthOptions =
+  process.env.AUTH_DISABLE_ADAPTER === 'true'
+    ? baseOptions
+    : { ...baseOptions, adapter: PrismaAdapter(prisma) as any };
