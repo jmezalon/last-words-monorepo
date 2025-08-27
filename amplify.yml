@@ -11,7 +11,7 @@ applications:
           commands:
             - npm ci
             - rm -rf node_modules/.prisma
-            - npx prisma generate --force
+            - npx prisma generate
             - npx prisma db push
         build:
           commands:
