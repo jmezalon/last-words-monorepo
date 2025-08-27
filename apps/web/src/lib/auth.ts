@@ -9,22 +9,27 @@ const prisma = new PrismaClient();
 
 // Generate Apple client secret JWT
 function generateAppleClientSecret() {
-  const now = Math.floor(Date.now() / 1000);
+  // Skip during build time when env vars aren't available
+  if (!process.env.APPLE_PRIVATE_KEY || !process.env.APPLE_TEAM_ID || !process.env.APPLE_ID || !process.env.APPLE_KEY_ID) {
+    return 'build-time-placeholder'
+  }
+
+  const now = Math.floor(Date.now() / 1000)
   const payload = {
     iss: process.env.APPLE_TEAM_ID,
     iat: now,
-    exp: now + 86400 * 180, // 6 months
-    aud: 'https://appleid.apple.com',
+    exp: now + 86400 * 180, // 180 days
+    aud: "https://appleid.apple.com",
     sub: process.env.APPLE_ID,
-  };
+  }
 
   return jwt.sign(payload, process.env.APPLE_PRIVATE_KEY!, {
-    algorithm: 'ES256',
+    algorithm: "ES256",
     header: {
-      alg: 'ES256',
+      alg: "ES256",
       kid: process.env.APPLE_KEY_ID,
     },
-  });
+  })
 }
 
 declare module 'next-auth' {
