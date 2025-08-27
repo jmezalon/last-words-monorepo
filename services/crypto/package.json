@@ -1,0 +1,13 @@
+{
+  "name": "@last-words/crypto",
+  "version": "0.1.0",
+  "description": "Last Words Crypto Service (Rust)",
+  "scripts": {
+    "build": "cargo build --release",
+    "dev": "cargo run",
+    "test": "cargo test",
+    "lint": "cargo clippy -- -D warnings",
+    "clean": "cargo clean"
+  },
+  "private": true
+}
