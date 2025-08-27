@@ -3,6 +3,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import AppleProvider from 'next-auth/providers/apple';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
 
@@ -17,18 +18,61 @@ declare module 'next-auth' {
   }
 }
 
+// Build providers conditionally to avoid config errors in prod
+const providers = [] as any[];
+
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    })
+  );
+} else {
+  console.warn('Google provider missing GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET');
+}
+
+// Apple requires a signed clientSecret (ES256)
+const { APPLE_ID, APPLE_TEAM_ID, APPLE_PRIVATE_KEY, APPLE_KEY_ID } =
+  process.env;
+
+if (APPLE_ID && APPLE_TEAM_ID && APPLE_PRIVATE_KEY && APPLE_KEY_ID) {
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const appleClientSecret = jwt.sign(
+      {
+        iss: APPLE_TEAM_ID,
+        iat: now,
+        exp: now + 60 * 60 * 24 * 180, // 180 days
+        aud: 'https://appleid.apple.com',
+        sub: APPLE_ID,
+      },
+      // Ensure newlines are correct when provided via env
+      APPLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      {
+        algorithm: 'ES256',
+        keyid: APPLE_KEY_ID,
+      }
+    );
+
+    providers.push(
+      AppleProvider({
+        clientId: APPLE_ID,
+        clientSecret: appleClientSecret,
+      })
+    );
+  } catch (e) {
+    console.warn('Failed to configure Apple provider:', e);
+  }
+} else {
+  console.warn('Apple provider env vars incomplete; skipping Apple provider');
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-    AppleProvider({
-      clientId: process.env.APPLE_ID || 'placeholder',
-      clientSecret: 'build-time-placeholder',
-    }),
-  ],
+  secret: process.env.NEXTAUTH_SECRET,
+  // If running behind proxies, ensure NEXTAUTH_URL is set in env
+  providers,
   session: {
     strategy: 'jwt',
   },
