@@ -1,0 +1,33 @@
+version: 1
+applications:
+  - appRoot: apps/web
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - cd apps/web
+            - npm ci
+            - npx prisma generate
+        build:
+          commands:
+            - cd apps/web
+            - npm run build
+      artifacts:
+        baseDirectory: apps/web/.next
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - apps/web/node_modules/**/*
+          - apps/web/.next/cache/**/*
+    environmentVariables:
+      - NEXTAUTH_URL
+      - NEXTAUTH_SECRET
+      - GOOGLE_CLIENT_ID
+      - GOOGLE_CLIENT_SECRET
+      - APPLE_ID
+      - APPLE_TEAM_ID
+      - APPLE_PRIVATE_KEY
+      - APPLE_KEY_ID
+      - DATABASE_URL
+      - JWT_SECRET
