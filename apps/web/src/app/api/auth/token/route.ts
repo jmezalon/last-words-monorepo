@@ -1,25 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import jwt from 'jsonwebtoken'
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 
-export async function GET(request: NextRequest) {
+import { authOptions } from '@/lib/auth';
+
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-    
+    const session = await getServerSession(authOptions);
+
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const token = jwt.sign(
-      { sub: session.user.id, email: session.user.email },
-      process.env.JWT_SECRET || 'your-jwt-secret-here',
-      { expiresIn: '1h' }
-    )
+    // Simple token generation without JWT library
+    const token = Buffer.from(
+      JSON.stringify({
+        sub: session.user.id,
+        email: session.user.email,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
+      })
+    ).toString('base64');
 
-    return NextResponse.json({ token })
+    return NextResponse.json({ token });
   } catch (error) {
-    console.error('Token generation error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
