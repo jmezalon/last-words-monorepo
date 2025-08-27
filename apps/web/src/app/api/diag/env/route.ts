@@ -19,6 +19,11 @@ export async function GET() {
 
   return NextResponse.json({
     present,
+    values: {
+      NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+      WEBAUTHN_ORIGIN: process.env.WEBAUTHN_ORIGIN,
+      WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID,
+    },
     runtime: process.env.NEXT_RUNTIME || 'node',
     nodeEnv: process.env.NODE_ENV,
   });
