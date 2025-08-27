@@ -1,23 +1,23 @@
 version: 1
 applications:
-  - appRoot: .
+  - appRoot: apps/web
     frontend:
       phases:
         preBuild:
           commands:
-            - cd apps/web && npm ci
-            - cd apps/web && npx prisma generate
+            - npm ci
+            - npx prisma generate
         build:
           commands:
-            - cd apps/web && npm run build
+            - npm run build
       artifacts:
-        baseDirectory: apps/web/.next
+        baseDirectory: .next
         files:
           - '**/*'
       cache:
         paths:
-          - apps/web/node_modules/**/*
-          - apps/web/.next/cache/**/*
+          - node_modules/**/*
+          - .next/cache/**/*
     environmentVariables:
       - NEXTAUTH_URL
       - NEXTAUTH_SECRET
