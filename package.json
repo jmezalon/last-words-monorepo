@@ -37,6 +37,7 @@
     "husky": "^8.0.3",
     "lint-staged": "^14.0.1",
     "prettier": "^3.0.3",
+    "prisma": "5.7.1",
     "turbo": "^1.10.12",
     "typescript": "^5.2.2"
   },
@@ -44,5 +45,8 @@
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "5.7.1"
   }
 }

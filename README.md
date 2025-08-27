@@ -1,12 +1,16 @@
-# Last Words - Monorepo
+# Last Words - Secure Digital Legacy Platform
 
-A modern, full-stack monorepo built with TypeScript, Next.js, NestJS, and Rust.
+A comprehensive authentication system with NextAuth, Google/Apple OAuth, and WebAuthn (passkeys) for secure access to sensitive information.
 
-## 🏗️ Architecture
+## Features
 
-This monorepo contains:
+- 🔐 **Multi-Provider OAuth**: Sign in with Google or Apple
+- 🛡️ **WebAuthn Security**: Passwordless authentication using passkeys
+- 📱 **Biometric Support**: Face ID, Touch ID, Windows Hello, and security keys
+- 🔒 **Protected Routes**: Secrets page requires WebAuthn verification
+- 🏗️ **Monorepo Architecture**: Next.js frontend + NestJS API backend
 
-- **`apps/web`** - Next.js 14 frontend with TypeScript and App Router
+## Quick Start
 - **`services/api`** - NestJS backend API service
 - **`services/crypto`** - Rust-based cryptographic service
 - **`infra/`** - Terraform infrastructure as code
