@@ -10,6 +10,7 @@ applications:
         preBuild:
           commands:
             - npm ci
+            - export DATABASE_URL=${DATABASE_URL:-"file:./dev.db"}
             - rm -rf node_modules/.prisma
             - npx prisma generate
         build:
