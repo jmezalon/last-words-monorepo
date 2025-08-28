@@ -79,6 +79,7 @@ export function getAuthOptions(): NextAuthOptions {
     secret: env.NEXTAUTH_SECRET,
     providers,
     session: { strategy: 'jwt' },
+    useSecureCookies: env.isProduction,
     callbacks: {
       async jwt({ token, user }: { token: any; user: any }) {
         if (user) token.id = user.id;

@@ -32,11 +32,6 @@ try {
   };
 }
 
-const handler = NextAuth({
-  ...authOptions,
-  debug: process.env.NODE_ENV === 'development',
-  trustHost: true,
-  useSecureCookies: process.env.NODE_ENV === 'production',
-});
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
