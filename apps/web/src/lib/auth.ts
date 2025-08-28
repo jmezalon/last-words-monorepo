@@ -20,6 +20,7 @@ declare module 'next-auth' {
 // Build options at runtime to avoid build-time env snapshotting
 export function getAuthOptions(): NextAuthOptions {
   const providers = [] as any[];
+  const env = process.env as Record<string, string | undefined>;
 
   // Replace OAuth with simple email-only credentials login.
   // This issues a JWT session and creates the user record if needed.
@@ -46,7 +47,8 @@ export function getAuthOptions(): NextAuthOptions {
   );
 
   const baseOptions: NextAuthOptions = {
-    secret: process.env.NEXTAUTH_SECRET,
+    // Read at runtime and fall back to JWT_SECRET if provided
+    secret: env['NEXTAUTH_SECRET'] || env['JWT_SECRET'],
     providers,
     session: { strategy: 'jwt' },
     callbacks: {
