@@ -8,6 +8,10 @@ export default function AuthError() {
   const error = searchParams.get('error');
 
   const getErrorMessage = (errorCode: string | null) => {
+    if (!errorCode || errorCode === 'undefined') {
+      return 'Authentication is not properly configured. Please set up Google OAuth credentials.';
+    }
+
     switch (errorCode) {
       case 'Configuration':
         return 'There is a problem with the server configuration. Check if your Google OAuth credentials are properly set up.';
@@ -34,7 +38,7 @@ export default function AuthError() {
       case 'SessionRequired':
         return 'Please sign in to access this page.';
       default:
-        return 'An unexpected error occurred during authentication. This might be due to missing Google OAuth credentials.';
+        return 'An unexpected error occurred during authentication.';
     }
   };
 
@@ -51,40 +55,40 @@ export default function AuthError() {
         </div>
 
         <div className='bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded'>
-          <p className='font-medium'>Error: {error || 'Unknown error'}</p>
+          <p className='font-medium'>Error: {error || 'Configuration Error'}</p>
           <p className='mt-2 text-sm'>{getErrorMessage(error)}</p>
         </div>
 
-        {!error || error === 'Configuration' || error === 'undefined' ? (
-          <div className='bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded'>
-            <p className='font-medium'>Setup Required:</p>
-            <ul className='mt-2 text-sm list-disc list-inside space-y-1'>
-              <li>Set up Google OAuth credentials in Google Cloud Console</li>
-              <li>
-                Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to environment
-                variables
-              </li>
-              <li>Configure authorized redirect URIs</li>
-              <li>Ensure NEXTAUTH_URL is set correctly</li>
-            </ul>
-          </div>
-        ) : null}
+        <div className='bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded'>
+          <p className='font-medium'>Setup Required:</p>
+          <ul className='mt-2 text-sm list-disc list-inside space-y-1'>
+            <li>Set up Google OAuth credentials in Google Cloud Console</li>
+            <li>
+              Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to environment
+              variables
+            </li>
+            <li>Configure authorized redirect URIs</li>
+            <li>Ensure NEXTAUTH_URL is set correctly</li>
+          </ul>
+        </div>
 
         <div className='text-center space-y-4'>
           <Link
-            href='/auth/signin'
+            href='/'
             className='inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
           >
-            Try Again
+            Back to Home
           </Link>
 
           <div>
-            <Link
-              href='/'
+            <a
+              href='https://console.cloud.google.com/'
+              target='_blank'
+              rel='noopener noreferrer'
               className='text-sm text-indigo-600 hover:text-indigo-500'
             >
-              ← Back to Home
-            </Link>
+              Set up Google OAuth →
+            </a>
           </div>
         </div>
       </div>

@@ -60,11 +60,19 @@ export function getAuthOptions(): NextAuthOptions {
     );
   }
 
-  // If no providers are configured, throw an error
+  // If no providers are configured, use a fallback provider to prevent crashes
   if (providers.length === 0) {
-    throw new Error(
-      'No authentication providers configured. Please set up Google OAuth credentials.'
-    );
+    console.warn('⚠️ No OAuth providers configured, using fallback provider');
+    // Add a simple fallback provider that always fails gracefully
+    providers.push({
+      id: 'fallback',
+      name: 'Fallback',
+      type: 'credentials',
+      credentials: {},
+      async authorize() {
+        return null; // Always return null to indicate failure
+      },
+    });
   }
 
   const baseOptions: NextAuthOptions = {
