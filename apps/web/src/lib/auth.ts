@@ -88,6 +88,19 @@ export function getAuthOptions(): NextAuthOptions {
         if (token && session.user) session.user.id = token.id as string;
         return session;
       },
+      async redirect({ url, baseUrl }) {
+        // Force production URL for redirects
+        const productionUrl = 'https://main.d3ste5u3f3aspp.amplifyapp.com';
+        if (env.isProduction) {
+          if (url.startsWith('/')) return `${productionUrl}${url}`;
+          if (url.startsWith(productionUrl)) return url;
+          return productionUrl;
+        }
+        // Development behavior
+        if (url.startsWith('/')) return `${baseUrl}${url}`;
+        if (new URL(url).origin === baseUrl) return url;
+        return baseUrl;
+      },
     },
     pages: { signIn: '/auth/signin', error: '/auth/error' },
     debug: env.isDevelopment,
