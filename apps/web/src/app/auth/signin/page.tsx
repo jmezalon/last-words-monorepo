@@ -7,9 +7,17 @@ import { useSearchParams } from 'next/navigation';
 export default function SignIn() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
+  const existingCallbackUrl = searchParams.get('callbackUrl');
 
   const handleGoogleSignIn = () => {
-    signIn('google', { callbackUrl: '/' });
+    // Use the existing callbackUrl if it's a relative path, otherwise use '/'
+    const callbackUrl =
+      existingCallbackUrl && existingCallbackUrl.startsWith('/')
+        ? existingCallbackUrl
+        : '/';
+
+    console.log('Signing in with callback URL:', callbackUrl);
+    signIn('google', { callbackUrl });
   };
 
   return (
@@ -27,6 +35,15 @@ export default function SignIn() {
         {error && (
           <div className='bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg'>
             Authentication error: {error}
+          </div>
+        )}
+
+        {existingCallbackUrl && !existingCallbackUrl.startsWith('/') && (
+          <div className='bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg'>
+            <p className='text-sm'>
+              <strong>Note:</strong> Invalid callback URL detected. You will be
+              redirected to the home page after sign-in.
+            </p>
           </div>
         )}
 

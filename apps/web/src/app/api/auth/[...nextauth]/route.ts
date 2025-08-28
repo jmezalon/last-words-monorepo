@@ -6,6 +6,11 @@ import { getAuthOptions } from '@/lib/auth';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// Debug environment variables
+console.log('NextAuth Environment Debug:');
+console.log('- NEXTAUTH_URL:', process.env.NEXTAUTH_URL);
+console.log('- NODE_ENV:', process.env.NODE_ENV);
+
 // Ensure host header checks don't break behind proxies (Amplify/CloudFront)
 let authOptions: NextAuthOptions;
 try {
