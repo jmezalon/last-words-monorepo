@@ -13,7 +13,8 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
-    "generate-env": "node scripts/generate-env.js"
+    "generate-env": "node scripts/generate-env.js",
+    "setup-production": "node scripts/setup-production-env.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^1.6.0",

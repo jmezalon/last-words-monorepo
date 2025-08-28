@@ -20,13 +20,21 @@ export const env = {
 
 // Validate required environment variables
 export function validateEnv() {
-  const required = ['NEXTAUTH_SECRET'];
-  const missing = required.filter(key => !env[key as keyof typeof env]);
+  const required = ['NEXTAUTH_SECRET', 'NEXTAUTH_URL'];
+  const missing = required.filter(key => {
+    const value = env[key as keyof typeof env];
+    return !value || value === 'http://localhost:3000';
+  });
 
   if (missing.length > 0) {
     console.warn(
-      `Missing required environment variables: ${missing.join(', ')}`
+      `Missing or incorrect required environment variables: ${missing.join(', ')}`
     );
+    if (missing.includes('NEXTAUTH_URL')) {
+      console.error(
+        'NEXTAUTH_URL must be set to your production domain (e.g., https://your-app.amplifyapp.com)'
+      );
+    }
     return false;
   }
 
