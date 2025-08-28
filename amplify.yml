@@ -10,10 +10,14 @@ applications:
         preBuild:
           commands:
             - npm ci
+            - echo "Setting up Prisma..."
             - rm -rf node_modules/.prisma
             - npx prisma generate
-            - npx prisma db push
-            - echo "Environment variables loaded"
+            - echo "Prisma setup complete"
+            - echo "Environment variables check:"
+            - echo "NEXTAUTH_URL: $NEXTAUTH_URL"
+            - echo "NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:+'SET'}"
+            - echo "DATABASE_URL: ${DATABASE_URL:+'SET'}"
         build:
           commands:
             - npm run build
@@ -24,3 +28,4 @@ applications:
       cache:
         paths:
           - node_modules/**/*
+          - apps/web/.next/cache/**/*

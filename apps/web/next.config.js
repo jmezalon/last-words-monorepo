@@ -16,7 +16,33 @@ const nextConfig = {
       AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST,
       AUTH_DISABLE_ADAPTER: process.env.AUTH_DISABLE_ADAPTER,
       ENABLE_APPLE: process.env.ENABLE_APPLE,
+      DATABASE_URL: process.env.DATABASE_URL,
     },
+  },
+  // Add proper error handling for Amplify
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
+  // Ensure proper static generation
+  output: 'standalone',
+  // Add proper headers for Amplify
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+        ],
+      },
+    ];
   },
 };
 

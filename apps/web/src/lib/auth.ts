@@ -2,9 +2,19 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { PrismaClient } from '@prisma/client';
-// jwt import no longer used after removing OAuth providers
 
-const prisma = new PrismaClient();
+import { env, validateEnv } from './env';
+
+// Initialize Prisma with error handling
+let prisma: PrismaClient;
+
+try {
+  prisma = new PrismaClient();
+} catch (error) {
+  console.error('Failed to initialize Prisma client:', error);
+  // Fallback for when database is not available
+  prisma = null as any;
+}
 
 declare module 'next-auth' {
   interface Session {
@@ -20,7 +30,9 @@ declare module 'next-auth' {
 // Build options at runtime to avoid build-time env snapshotting
 export function getAuthOptions(): NextAuthOptions {
   const providers = [] as any[];
-  const env = process.env as Record<string, string | undefined>;
+
+  // Validate environment variables
+  validateEnv();
 
   // Replace OAuth with simple email-only credentials login.
   // This issues a JWT session and creates the user record if needed.
@@ -30,25 +42,36 @@ export function getAuthOptions(): NextAuthOptions {
       name: 'Email',
       credentials: { email: { label: 'Email', type: 'email' } },
       async authorize(credentials) {
-        const email = credentials?.email?.toString().trim().toLowerCase();
-        if (!email) return null;
-        const user = await prisma.user.upsert({
-          where: { email },
-          update: {},
-          create: { email },
-        });
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name || null,
-        } as any;
+        try {
+          const email = credentials?.email?.toString().trim().toLowerCase();
+          if (!email) return null;
+
+          if (!prisma) {
+            console.error('Prisma client not available');
+            return null;
+          }
+
+          const user = await prisma.user.upsert({
+            where: { email },
+            update: {},
+            create: { email },
+          });
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name || null,
+          } as any;
+        } catch (error) {
+          console.error('Error in authorize function:', error);
+          return null;
+        }
       },
     })
   );
 
   const baseOptions: NextAuthOptions = {
-    // Read at runtime and fall back to JWT_SECRET if provided
-    secret: env['NEXTAUTH_SECRET'] || env['JWT_SECRET'],
+    secret: env.NEXTAUTH_SECRET,
     providers,
     session: { strategy: 'jwt' },
     callbacks: {
@@ -62,9 +85,13 @@ export function getAuthOptions(): NextAuthOptions {
       },
     },
     pages: { signIn: '/auth/signin', error: '/auth/error' },
+    debug: env.isDevelopment,
   };
 
   return process.env.AUTH_DISABLE_ADAPTER === 'true'
     ? baseOptions
-    : { ...baseOptions, adapter: PrismaAdapter(prisma) as any };
+    : {
+        ...baseOptions,
+        adapter: prisma ? (PrismaAdapter(prisma) as any) : undefined,
+      };
 }
