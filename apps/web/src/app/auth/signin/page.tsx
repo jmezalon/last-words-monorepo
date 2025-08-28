@@ -16,8 +16,17 @@ export default function SignIn() {
         ? existingCallbackUrl
         : '/';
 
-    console.log('Signing in with callback URL:', callbackUrl);
-    signIn('google', { callbackUrl });
+    console.log('=== Google Sign-in Debug ===');
+    console.log('Callback URL:', callbackUrl);
+    console.log('Existing callback URL:', existingCallbackUrl);
+    console.log('Current URL:', window.location.href);
+    console.log('Attempting to sign in with Google...');
+
+    try {
+      signIn('google', { callbackUrl });
+    } catch (error) {
+      console.error('Sign-in error:', error);
+    }
   };
 
   return (
@@ -78,6 +87,16 @@ export default function SignIn() {
           <p className='text-sm text-gray-600'>
             By signing in, you agree to our terms of service and privacy policy.
           </p>
+        </div>
+
+        <div className='text-center'>
+          <a
+            href='/api/test-oauth'
+            target='_blank'
+            className='text-sm text-indigo-600 hover:text-indigo-500'
+          >
+            Test OAuth Configuration →
+          </a>
         </div>
       </div>
     </div>
