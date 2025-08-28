@@ -8,6 +8,8 @@ Make sure to set these environment variables in your AWS Amplify console:
 
 - `NEXTAUTH_SECRET` - A secure random string for JWT signing
 - `NEXTAUTH_URL` - Your production URL (e.g., `https://your-app.amplifyapp.com`)
+- `GOOGLE_CLIENT_ID` - Your Google OAuth Client ID
+- `GOOGLE_CLIENT_SECRET` - Your Google OAuth Client Secret
 
 ### Optional Variables:
 
@@ -15,13 +17,37 @@ Make sure to set these environment variables in your AWS Amplify console:
 - `AUTH_DISABLE_ADAPTER` - Set to `true` to disable Prisma adapter
 - `NODE_ENV` - Set to `production`
 
+## Google OAuth Setup
+
+### Step 1: Create Google OAuth Credentials
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the Google+ API (or Google Identity API)
+4. Go to **Credentials** > **Create Credentials** > **OAuth 2.0 Client ID**
+5. Set Application Type to **"Web application"**
+6. Add authorized redirect URIs:
+   - `https://your-app.amplifyapp.com/api/auth/callback/google`
+   - `http://localhost:3000/api/auth/callback/google` (for local development)
+7. Copy the **Client ID** and **Client Secret**
+
+### Step 2: Set Environment Variables
+
+Add these to your AWS Amplify environment variables:
+
+```bash
+GOOGLE_CLIENT_ID=your-google-client-id-here
+GOOGLE_CLIENT_SECRET=your-google-client-secret-here
+```
+
 ## Deployment Checklist
 
 ### Before Deployment:
 
-1. ✅ Set all required environment variables in Amplify console
-2. ✅ Ensure your repository is connected to Amplify
-3. ✅ Check that the build settings point to `apps/web` directory
+1. ✅ Set up Google OAuth credentials
+2. ✅ Set all required environment variables in Amplify console
+3. ✅ Ensure your repository is connected to Amplify
+4. ✅ Check that the build settings point to `apps/web` directory
 
 ### During Build:
 
@@ -33,7 +59,8 @@ Make sure to set these environment variables in your AWS Amplify console:
 
 1. ✅ Test the health check endpoint: `/api/health`
 2. ✅ Verify the main page loads without errors
-3. ✅ Test authentication flow
+3. ✅ Test Google sign-in flow
+4. ✅ Verify user session management
 
 ## Troubleshooting
 
@@ -44,9 +71,10 @@ Make sure to set these environment variables in your AWS Amplify console:
    - Verify `NEXTAUTH_SECRET` is set
    - Check build logs for Prisma errors
 
-2. **Database Connection Issues**
-   - If using external database, ensure `DATABASE_URL` is set
-   - For local development, SQLite will be used automatically
+2. **Google OAuth Errors**
+   - Verify `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set
+   - Check that redirect URIs are correctly configured
+   - Ensure the Google+ API is enabled
 
 3. **Authentication Issues**
    - Verify `NEXTAUTH_URL` matches your production domain
@@ -79,6 +107,8 @@ Make sure to set these environment variables in your AWS Amplify console:
 # Required
 NEXTAUTH_SECRET=your-super-secret-key-here
 NEXTAUTH_URL=https://your-app.amplifyapp.com
+GOOGLE_CLIENT_ID=your-google-client-id-here
+GOOGLE_CLIENT_SECRET=your-google-client-secret-here
 
 # Optional
 DATABASE_URL=postgresql://user:pass@host:port/db
@@ -93,3 +123,4 @@ If you're still experiencing issues:
 1. Check the health endpoint for detailed error information
 2. Review the build logs in Amplify console
 3. Ensure all environment variables are properly set
+4. Verify Google OAuth credentials are correctly configured

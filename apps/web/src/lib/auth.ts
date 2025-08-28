@@ -1,5 +1,5 @@
 import { NextAuthOptions } from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
 
 import { env, validateEnv } from './env';
 
@@ -21,33 +21,19 @@ export function getAuthOptions(): NextAuthOptions {
   // Validate environment variables
   validateEnv();
 
-  // Simple email-only credentials login without database dependency
-  providers.push(
-    CredentialsProvider({
-      id: 'credentials',
-      name: 'Email',
-      credentials: { email: { label: 'Email', type: 'email' } },
-      async authorize(credentials) {
-        try {
-          const email = credentials?.email?.toString().trim().toLowerCase();
-          if (!email) return null;
-
-          // For deployed environment, use a simple approach without database
-          // Generate a consistent user ID based on email
-          const userId = `user_${Buffer.from(email).toString('base64').slice(0, 8)}`;
-
-          return {
-            id: userId,
-            email: email,
-            name: email.split('@')[0], // Use email prefix as name
-          } as any;
-        } catch (error) {
-          console.error('Error in authorize function:', error);
-          return null;
-        }
-      },
-    })
-  );
+  // Add Google OAuth provider
+  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
+    providers.push(
+      GoogleProvider({
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+      })
+    );
+  } else {
+    console.warn(
+      'Google OAuth credentials not found. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.'
+    );
+  }
 
   const baseOptions: NextAuthOptions = {
     secret: env.NEXTAUTH_SECRET,
@@ -67,6 +53,5 @@ export function getAuthOptions(): NextAuthOptions {
     debug: env.isDevelopment,
   };
 
-  // Disable adapter for deployed environment to avoid database issues
   return baseOptions;
 }
