@@ -12,6 +12,10 @@ applications:
             - npm ci
             - export DATABASE_URL=${DATABASE_URL:-"file:./dev.db"}
             - export AUTH_DISABLE_ADAPTER=true
+            - export NEXTAUTH_URL="https://main.d3ste5u3f3aspp.amplifyapp.com"
+            - export WEBAUTHN_RP_ID="main.d3ste5u3f3aspp.amplifyapp.com"
+            - export WEBAUTHN_ORIGIN="https://main.d3ste5u3f3aspp.amplifyapp.com"
+            - export API_URL="https://main.d3ste5u3f3aspp.amplifyapp.com"
             - rm -rf node_modules/.prisma
             - npx prisma generate
         build:
