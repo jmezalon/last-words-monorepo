@@ -1,9 +1,8 @@
 import { NextAuthOptions } from 'next-auth';
-import GoogleProvider from 'next-auth/providers/google';
-import AppleProvider from 'next-auth/providers/apple';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+// jwt import no longer used after removing OAuth providers
 
 const prisma = new PrismaClient();
 
@@ -22,59 +21,29 @@ declare module 'next-auth' {
 export function getAuthOptions(): NextAuthOptions {
   const providers = [] as any[];
 
-  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    providers.push(
-      GoogleProvider({
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      })
-    );
-  } else {
-    console.warn(
-      'Google provider missing GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET'
-    );
-  }
-
-  // Apple requires ES256; opt-in with ENABLE_APPLE=true
-  const {
-    APPLE_ID,
-    APPLE_TEAM_ID,
-    APPLE_PRIVATE_KEY,
-    APPLE_KEY_ID,
-    ENABLE_APPLE,
-  } = process.env;
-
-  if (
-    ENABLE_APPLE === 'true' &&
-    APPLE_ID &&
-    APPLE_TEAM_ID &&
-    APPLE_PRIVATE_KEY &&
-    APPLE_KEY_ID
-  ) {
-    try {
-      const now = Math.floor(Date.now() / 1000);
-      const appleClientSecret = jwt.sign(
-        {
-          iss: APPLE_TEAM_ID,
-          iat: now,
-          exp: now + 60 * 60 * 24 * 180,
-          aud: 'https://appleid.apple.com',
-          sub: APPLE_ID,
-        },
-        (APPLE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-        { algorithm: 'ES256', keyid: APPLE_KEY_ID }
-      );
-      providers.push(
-        AppleProvider({ clientId: APPLE_ID, clientSecret: appleClientSecret })
-      );
-    } catch (e) {
-      console.warn('Failed to configure Apple provider:', e);
-    }
-  } else {
-    console.warn(
-      'Apple provider disabled or env vars incomplete; skipping Apple provider'
-    );
-  }
+  // Replace OAuth with simple email-only credentials login.
+  // This issues a JWT session and creates the user record if needed.
+  providers.push(
+    CredentialsProvider({
+      id: 'credentials',
+      name: 'Email',
+      credentials: { email: { label: 'Email', type: 'email' } },
+      async authorize(credentials) {
+        const email = credentials?.email?.toString().trim().toLowerCase();
+        if (!email) return null;
+        const user = await prisma.user.upsert({
+          where: { email },
+          update: {},
+          create: { email },
+        });
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name || null,
+        } as any;
+      },
+    })
+  );
 
   const baseOptions: NextAuthOptions = {
     secret: process.env.NEXTAUTH_SECRET,
