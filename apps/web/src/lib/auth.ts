@@ -21,20 +21,16 @@ export function getAuthOptions(): NextAuthOptions {
   // Validate environment variables
   validateEnv();
 
-  // Debug environment variables (only in development)
-  if (env.isDevelopment) {
-    console.log('Auth Configuration Debug:');
-    console.log('- NEXTAUTH_URL:', env.NEXTAUTH_URL);
-    console.log('- NEXTAUTH_SECRET:', env.NEXTAUTH_SECRET ? 'SET' : 'NOT SET');
-    console.log(
-      '- GOOGLE_CLIENT_ID:',
-      env.GOOGLE_CLIENT_ID ? 'SET' : 'NOT SET'
-    );
-    console.log(
-      '- GOOGLE_CLIENT_SECRET:',
-      env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET'
-    );
-  }
+  // Debug environment variables (in all environments for troubleshooting)
+  console.log('Auth Configuration Debug:');
+  console.log('- NODE_ENV:', process.env.NODE_ENV);
+  console.log('- NEXTAUTH_URL:', env.NEXTAUTH_URL);
+  console.log('- NEXTAUTH_SECRET:', env.NEXTAUTH_SECRET ? 'SET' : 'NOT SET');
+  console.log('- GOOGLE_CLIENT_ID:', env.GOOGLE_CLIENT_ID ? 'SET' : 'NOT SET');
+  console.log(
+    '- GOOGLE_CLIENT_SECRET:',
+    env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET'
+  );
 
   // Add Google OAuth provider
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
