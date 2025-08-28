@@ -41,6 +41,14 @@ export function getAuthOptions(): NextAuthOptions {
   );
 
   // Add Google OAuth provider
+  console.log('Checking Google OAuth conditions:');
+  console.log('- env.GOOGLE_CLIENT_ID exists:', !!env.GOOGLE_CLIENT_ID);
+  console.log('- env.GOOGLE_CLIENT_SECRET exists:', !!env.GOOGLE_CLIENT_SECRET);
+  console.log(
+    '- Both conditions met:',
+    !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET)
+  );
+
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
     providers.push(
       GoogleProvider({
@@ -49,6 +57,7 @@ export function getAuthOptions(): NextAuthOptions {
       })
     );
     console.log('✅ Google OAuth provider configured successfully');
+    console.log('- Providers array length:', providers.length);
   } else {
     console.error('❌ Google OAuth credentials not found:');
     console.error(
