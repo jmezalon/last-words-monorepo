@@ -21,6 +21,21 @@ export function getAuthOptions(): NextAuthOptions {
   // Validate environment variables
   validateEnv();
 
+  // Debug environment variables (only in development)
+  if (env.isDevelopment) {
+    console.log('Auth Configuration Debug:');
+    console.log('- NEXTAUTH_URL:', env.NEXTAUTH_URL);
+    console.log('- NEXTAUTH_SECRET:', env.NEXTAUTH_SECRET ? 'SET' : 'NOT SET');
+    console.log(
+      '- GOOGLE_CLIENT_ID:',
+      env.GOOGLE_CLIENT_ID ? 'SET' : 'NOT SET'
+    );
+    console.log(
+      '- GOOGLE_CLIENT_SECRET:',
+      env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET'
+    );
+  }
+
   // Add Google OAuth provider
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
     providers.push(
@@ -29,9 +44,26 @@ export function getAuthOptions(): NextAuthOptions {
         clientSecret: env.GOOGLE_CLIENT_SECRET,
       })
     );
+    console.log('✅ Google OAuth provider configured successfully');
   } else {
-    console.warn(
-      'Google OAuth credentials not found. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.'
+    console.error('❌ Google OAuth credentials not found:');
+    console.error(
+      '- GOOGLE_CLIENT_ID:',
+      env.GOOGLE_CLIENT_ID ? 'SET' : 'NOT SET'
+    );
+    console.error(
+      '- GOOGLE_CLIENT_SECRET:',
+      env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET'
+    );
+    console.error(
+      'Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.'
+    );
+  }
+
+  // If no providers are configured, throw an error
+  if (providers.length === 0) {
+    throw new Error(
+      'No authentication providers configured. Please set up Google OAuth credentials.'
     );
   }
 
