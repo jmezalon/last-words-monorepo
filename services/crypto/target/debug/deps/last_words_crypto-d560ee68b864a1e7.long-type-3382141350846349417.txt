@@ -1,0 +1,1 @@
+argon2::password_hash::Salt<'_>: From<&Vec<u8>>

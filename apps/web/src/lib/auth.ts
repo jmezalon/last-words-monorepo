@@ -26,7 +26,6 @@ export function getAuthOptions(): NextAuthOptions {
   console.log('- NODE_ENV:', process.env.NODE_ENV);
   console.log('- NEXTAUTH_URL:', env.NEXTAUTH_URL);
   console.log('- NEXTAUTH_SECRET:', env.NEXTAUTH_SECRET ? 'SET' : 'NOT SET');
-  console.log('- Raw GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID);
   console.log(
     '- Raw GOOGLE_CLIENT_SECRET:',
     process.env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET'

@@ -1,0 +1,11 @@
+/Users/mezalonm/last-words/last-words-monorepo/services/crypto/target/debug/deps/tokio_test-614a15a00ced8c04.d: /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/lib.rs /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/io.rs /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/stream_mock.rs /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/macros.rs /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/task.rs
+
+/Users/mezalonm/last-words/last-words-monorepo/services/crypto/target/debug/deps/libtokio_test-614a15a00ced8c04.rlib: /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/lib.rs /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/io.rs /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/stream_mock.rs /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/macros.rs /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/task.rs
+
+/Users/mezalonm/last-words/last-words-monorepo/services/crypto/target/debug/deps/libtokio_test-614a15a00ced8c04.rmeta: /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/lib.rs /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/io.rs /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/stream_mock.rs /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/macros.rs /Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/task.rs
+
+/Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/lib.rs:
+/Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/io.rs:
+/Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/stream_mock.rs:
+/Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/macros.rs:
+/Users/mezalonm/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-test-0.4.4/src/task.rs:
