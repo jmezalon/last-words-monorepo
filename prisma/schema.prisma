@@ -1,16 +1,17 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-// Updated for PostgreSQL production deployment
+// Last Words Prisma Schema
+// Comprehensive schema for secure digital legacy management
+// All sensitive data stored as encrypted blobs, emails as salted HMAC
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
+// NextAuth.js required models
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -38,19 +39,6 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  authenticators Authenticator[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-}
-
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -75,4 +63,262 @@ model Authenticator {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Core Last Words Models
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  
+  // Encrypted user data (PII stored as encrypted blobs)
+  encryptedPersonalData String? // Contains: full name, phone, address, etc.
+  emailHmac             String  @unique // Salted HMAC of email for lookups
+  masterKeyWrapped      String? // User's master key wrapped with password-derived key
+  keyDerivationSalt     String? // Salt for password-based key derivation
+  
+  // User preferences and settings
+  timezone              String  @default("UTC")
+  notificationSettings  String? // Encrypted notification preferences (JSON as string)
+  
+  // NextAuth relations
+  accounts      Account[]
+  sessions      Session[]
+  authenticators Authenticator[]
+  
+  // Last Words relations
+  wills         Will[]
+  beneficiaries Beneficiary[]
+  aliveChecks   AliveCheck[]
+  auditLogs     AuditLog[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([emailHmac])
+}
+
+model Beneficiary {
+  id                    String @id @default(cuid())
+  userId                String
+  
+  // Encrypted beneficiary data
+  encryptedContactData  String // Contains: name, email, phone, address, relationship
+  emailHmac             String // Salted HMAC of beneficiary email
+  
+  // Access and verification
+  accessKeyWrapped      String? // Beneficiary's access key (wrapped)
+  verificationMethod    String  @default("email") // email, sms, manual
+  isVerified            Boolean @default(false)
+  verificationToken     String?
+  verificationExpiresAt DateTime?
+  
+  // Metadata
+  priority              Int     @default(1) // 1=primary, 2=secondary, etc.
+  isActive              Boolean @default(true)
+  
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  willBeneficiaries     WillBeneficiary[]
+  releaseEvents         ReleaseEvent[]
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([emailHmac])
+}
+
+model Will {
+  id                    String @id @default(cuid())
+  userId                String
+  
+  // Basic will metadata (encrypted)
+  encryptedTitle        String
+  encryptedDescription  String?
+  
+  // Will content (fully encrypted)
+  encryptedContent      String // Main will document content
+  contentVersion        Int    @default(1)
+  
+  // Access control
+  requiresWebAuthn      Boolean @default(true)
+  accessLevel           String  @default("PRIVATE") // PRIVATE, BENEFICIARY_ONLY, PUBLIC
+  
+  // Release conditions
+  releaseConditions     String // Encrypted conditions for release (JSON as string)
+  autoReleaseEnabled    Boolean @default(false)
+  manualReleaseEnabled  Boolean @default(true)
+  
+  // Status
+  status                String  @default("DRAFT") // DRAFT, ACTIVE, RELEASED, REVOKED
+  isActive              Boolean @default(true)
+  
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secrets               Secret[]
+  willBeneficiaries     WillBeneficiary[]
+  releaseEvents         ReleaseEvent[]
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  releasedAt            DateTime?
+  
+  @@index([userId])
+  @@index([status])
+}
+
+model WillBeneficiary {
+  id            String @id @default(cuid())
+  willId        String
+  beneficiaryId String
+  
+  // Access permissions for this beneficiary to this will
+  accessLevel   String @default("READ") // read, write, admin
+  canTriggerRelease Boolean @default(false)
+  
+  will          Will        @relation(fields: [willId], references: [id], onDelete: Cascade)
+  beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  
+  @@unique([willId, beneficiaryId])
+}
+
+model Secret {
+  id                    String @id @default(cuid())
+  willId                String
+  
+  // Secret metadata (encrypted)
+  encryptedTitle        String
+  encryptedDescription  String?
+  secretType            String // password, document, note, crypto_key, etc.
+  
+  // Secret content (fully encrypted)
+  encryptedContent      String // The actual secret data
+  encryptedMetadata     String? // Additional metadata (file type, size, etc.)
+  
+  // Access control
+  requiresWebAuthn      Boolean @default(true)
+  accessLevel           String  @default("PRIVATE")
+  
+  // Organization
+  category              String? // Personal, Financial, Digital, etc.
+  tags                  String? // Searchable tags (comma-separated)
+  priority              Int     @default(1)
+  
+  // Status
+  isActive              Boolean @default(true)
+  
+  will                  Will    @relation(fields: [willId], references: [id], onDelete: Cascade)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([willId])
+  @@index([secretType])
+  @@index([category])
+}
+
+model AliveCheck {
+  id                    String @id @default(cuid())
+  userId                String
+  
+  // Check configuration
+  checkType             String // manual, email_response, app_checkin, biometric
+  intervalDays          Int    @default(30) // How often to check
+  gracePeriodDays       Int    @default(7)  // Grace period before triggering
+  
+  // Check data
+  lastCheckAt           DateTime?
+  nextCheckDue          DateTime
+  consecutiveMissed     Int    @default(0)
+  maxMissedBeforeTrigger Int   @default(3)
+  
+  // Status
+  isActive              Boolean @default(true)
+  isOverdue             Boolean @default(false)
+  
+  // Notification settings (encrypted)
+  encryptedNotificationConfig String?
+  
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([nextCheckDue])
+  @@index([isActive, isOverdue])
+}
+
+model ReleaseEvent {
+  id                    String @id @default(cuid())
+  willId                String?
+  beneficiaryId         String?
+  
+  // Event details
+  eventType             String // manual_release, auto_release, alive_check_failed, emergency
+  triggerReason         String // Detailed reason for the release
+  
+  // Event data (encrypted)
+  encryptedEventData    String? // Additional event context
+  
+  // Status and processing
+  status                String @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  processedAt           DateTime?
+  
+  // Verification and approval
+  requiresApproval      Boolean @default(false)
+  approvedBy            String? // User ID who approved
+  approvedAt            DateTime?
+  
+  // Metadata
+  ipAddress             String?
+  userAgent             String?
+  
+  will                  Will?        @relation(fields: [willId], references: [id], onDelete: SetNull)
+  beneficiary           Beneficiary? @relation(fields: [beneficiaryId], references: [id], onDelete: SetNull)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([willId])
+  @@index([beneficiaryId])
+  @@index([eventType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id                    String @id @default(cuid())
+  userId                String?
+  
+  // Action details
+  action                String // create_will, update_secret, release_triggered, etc.
+  entityType            String // will, secret, beneficiary, user
+  entityId              String?
+  
+  // Event context (encrypted)
+  encryptedDetails      String? // Detailed action information
+  
+  // Request metadata
+  ipAddress             String?
+  userAgent             String?
+  sessionId             String?
+  
+  // Risk and security
+  riskLevel             String @default("LOW") // LOW, MEDIUM, HIGH, CRITICAL
+  flagged               Boolean @default(false)
+  
+  user                  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  createdAt             DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([riskLevel])
+  @@index([flagged])
+  @@index([createdAt])
 }
