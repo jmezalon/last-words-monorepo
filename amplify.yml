@@ -9,7 +9,7 @@ applications:
       phases:
         preBuild:
           commands:
-            - npm ci
+            - npm ci --include=dev
             - export DATABASE_URL=${DATABASE_URL:-"file:./dev.db"}
             - export AUTH_DISABLE_ADAPTER=true
             - export NEXTAUTH_URL="https://main.d3ste5u3f3aspp.amplifyapp.com"
