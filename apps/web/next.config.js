@@ -19,6 +19,14 @@ const nextConfig = {
       DATABASE_URL: process.env.DATABASE_URL,
     },
   },
+  // Add webpack configuration to resolve path aliases
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': require('path').resolve(__dirname, 'src'),
+    };
+    return config;
+  },
   // Add proper error handling for Amplify
   onDemandEntries: {
     maxInactiveAge: 25 * 1000,
