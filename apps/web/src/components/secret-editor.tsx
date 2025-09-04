@@ -44,18 +44,58 @@ export default function SecretEditor({ onSave }: SecretEditorProps) {
 
     setIsLoading(true);
     try {
-      // For now, just call the onSave callback with the data
-      // TODO: Implement client-side encryption
+      // Import crypto functions dynamically to avoid SSR issues
+      const { deriveUserKey, generateCIK, wrapCIK, encryptPayload } = await import('../lib/crypto');
+      
+      // Generate salt for key derivation
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const saltString = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      // Derive user key from password
+      const userKey = await deriveUserKey(password, saltString);
+      
+      // Generate CIK
+      const cik = generateCIK();
+      
+      // Get master key from API
+      const masterKeyResponse = await fetch('/api/crypto/get-master-key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}` // TODO: Get proper token
+        }
+      });
+      
+      if (!masterKeyResponse.ok) {
+        throw new Error('Failed to get master key');
+      }
+      
+      const { masterKey: masterKeyBase64 } = await masterKeyResponse.json();
+      const masterKey = new Uint8Array(Buffer.from(masterKeyBase64, 'base64'));
+      
+      // Wrap CIK with master key and user key
+      const encryptedCIK = await wrapCIK(cik, masterKey, userKey);
+      
+      // Encrypt the secret content
+      const payload = JSON.stringify({
+        title,
+        description,
+        content,
+        category,
+        tags
+      });
+      
+      const { ciphertext, nonce } = await encryptPayload(payload, cik);
+      
       const secretData = {
         title,
         description,
         content,
         category,
         tags,
-        // Placeholder for encrypted data
-        encryptedCIK: 'placeholder_encrypted_cik',
-        ciphertext: 'placeholder_ciphertext',
-        nonce: 'placeholder_nonce'
+        encryptedCIK,
+        ciphertext,
+        nonce
       };
 
       if (onSave) {

@@ -1,15 +1,5 @@
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
-
-// Simple type for argon2-browser
-declare const hash: (options: {
-  pass: string;
-  salt: string;
-  type: number;
-  time: number;
-  mem: number;
-  parallelism: number;
-  hashLen: number;
-}) => Promise<{ hash: ArrayBuffer }>;
+import { hash, ArgonType } from 'argon2-browser';
 
 // Use crypto.getRandomValues for random bytes
 function randomBytes(length: number): Uint8Array {
@@ -36,11 +26,11 @@ export async function deriveUserKey(password: string, salt: string): Promise<Uin
   const result = await hash({
     pass: password,
     salt: salt,
-    type: 2, // Argon2id
-    time: 3,
-    mem: 65536, // 64MB
-    parallelism: 1,
-    hashLen: 32,
+    type: ArgonType.Argon2id,
+    time: 3, // iterations
+    mem: 65536, // 64MB memory
+    parallelism: 4, // threads
+    hashLen: 32 // 32 bytes output
   });
   
   return new Uint8Array(result.hash);

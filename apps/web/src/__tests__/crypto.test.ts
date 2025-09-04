@@ -2,7 +2,15 @@
  * @jest-environment jsdom
  */
 
-import { generateSalt, generateCIK, encryptPayload, decryptPayload } from '../lib/crypto';
+import { 
+  deriveUserKey, 
+  generateCIK, 
+  wrapCIK, 
+  unwrapCIK, 
+  encryptPayload, 
+  decryptPayload,
+  generateSalt
+} from '../lib/crypto';
 
 // Mock crypto.getRandomValues for testing
 Object.defineProperty(global, 'crypto', {
@@ -12,12 +20,104 @@ Object.defineProperty(global, 'crypto', {
       for (let i = 0; i < arr.length; i++) {
         arr[i] = i % 256;
       }
-      return arr;
     }),
   },
 });
 
 describe('Crypto Functions', () => {
+  const testPassword = 'test-password-123';
+  const testSalt = 'abcdef1234567890abcdef1234567890';
+  const testPayload = JSON.stringify({
+    title: 'Test Secret',
+    description: 'Test Description',
+    content: 'Secret content here',
+    category: 'Personal',
+    tags: ['test', 'crypto']
+  });
+
+  test('deriveUserKey produces consistent results', async () => {
+    const userKey1 = await deriveUserKey(testPassword, testSalt);
+    const userKey2 = await deriveUserKey(testPassword, testSalt);
+    
+    expect(userKey1).toEqual(userKey2);
+    expect(userKey1.length).toBe(32);
+  });
+
+  test('generateCIK produces random keys', () => {
+    const cik1 = generateCIK();
+    const cik2 = generateCIK();
+    
+    expect(cik1).not.toEqual(cik2);
+    expect(cik1.length).toBe(32);
+    expect(cik2.length).toBe(32);
+  });
+
+  test('CIK wrapping and unwrapping round-trip', async () => {
+    const userKey = await deriveUserKey(testPassword, testSalt);
+    const masterKey = new Uint8Array(32).fill(42); // Test master key
+    const originalCIK = generateCIK();
+    
+    // Wrap the CIK
+    const encryptedCIK = await wrapCIK(originalCIK, masterKey, userKey);
+    expect(typeof encryptedCIK).toBe('string');
+    
+    // Unwrap the CIK
+    const unwrappedCIK = await unwrapCIK(encryptedCIK, masterKey, userKey);
+    expect(unwrappedCIK).toEqual(originalCIK);
+  });
+
+  test('payload encryption and decryption round-trip', async () => {
+    const cik = generateCIK();
+    
+    // Encrypt payload
+    const { ciphertext, nonce } = await encryptPayload(testPayload, cik);
+    expect(typeof ciphertext).toBe('string');
+    expect(typeof nonce).toBe('string');
+    
+    // Decrypt payload
+    const decryptedPayload = await decryptPayload(ciphertext, nonce, cik);
+    expect(decryptedPayload).toBe(testPayload);
+  });
+
+  test('full encryption workflow round-trip', async () => {
+    // Simulate full encryption workflow
+    const userKey = await deriveUserKey(testPassword, testSalt);
+    const masterKey = new Uint8Array(32).fill(123); // Test master key
+    const cik = generateCIK();
+    
+    // Wrap CIK
+    const encryptedCIK = await wrapCIK(cik, masterKey, userKey);
+    
+    // Encrypt payload
+    const { ciphertext, nonce } = await encryptPayload(testPayload, cik);
+    
+    // Simulate storage and retrieval
+    // Unwrap CIK
+    const unwrappedCIK = await unwrapCIK(encryptedCIK, masterKey, userKey);
+    
+    // Decrypt payload
+    const decryptedPayload = await decryptPayload(ciphertext, nonce, unwrappedCIK);
+    
+    expect(decryptedPayload).toBe(testPayload);
+  });
+
+  test('different passwords produce different keys', async () => {
+    const userKey1 = await deriveUserKey('password1', testSalt);
+    const userKey2 = await deriveUserKey('password2', testSalt);
+    
+    expect(userKey1).not.toEqual(userKey2);
+  });
+
+  test('different salts produce different keys', async () => {
+    const salt1 = 'salt1111111111111111111111111111';
+    const salt2 = 'salt2222222222222222222222222222';
+    
+    const userKey1 = await deriveUserKey(testPassword, salt1);
+    const userKey2 = await deriveUserKey(testPassword, salt2);
+    
+    expect(userKey1).not.toEqual(userKey2);
+  });
+
   test('generateSalt creates a base64 string', () => {
     const salt = generateSalt();
     expect(typeof salt).toBe('string');

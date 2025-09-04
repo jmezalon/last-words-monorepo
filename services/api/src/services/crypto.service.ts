@@ -2,7 +2,8 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkingSecretRepository } from '../repositories/working-secret.repository';
 import { WorkingUserRepository } from '../repositories/working-user.repository';
-import { randomBytes } from 'crypto';
+import { WorkingWillRepository } from '../repositories/working-will.repository';
+import * as crypto from 'crypto';
 
 export interface EncryptedSecretData {
   encryptedCIK: string;
@@ -23,10 +24,17 @@ export class CryptoService {
   ) {}
 
   /**
+   * Generates a random 256-bit Content Encryption Key (CIK)
+   */
+  async generateCIK(): Promise<Buffer> {
+    return crypto.randomBytes(32);
+  }
+
+  /**
    * Generates a random key of specified length
    */
   async generateRandomKey(length: number): Promise<Uint8Array> {
-    return new Uint8Array(randomBytes(length));
+    return new Uint8Array(crypto.randomBytes(length));
   }
 
   /**

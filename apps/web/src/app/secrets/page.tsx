@@ -55,13 +55,22 @@ export default function SecretsPage() {
     nonce: string;
   }) => {
     try {
-      // TODO: Implement actual API call to save encrypted secret
-      console.log('Saving secret:', secretData);
+      // Upload encrypted secret to API
+      const response = await fetch('/api/crypto/upload-secret', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}` // TODO: Get proper token
+        },
+        body: JSON.stringify(secretData)
+      });
       
-      // For now, just simulate a successful save
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!response.ok) {
+        throw new Error('Failed to save secret');
+      }
       
-      console.log('Secret saved successfully');
+      const result = await response.json();
+      console.log('Secret saved successfully:', result);
     } catch (error) {
       console.error('Error saving secret:', error);
       throw error;
