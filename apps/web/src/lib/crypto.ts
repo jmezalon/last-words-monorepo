@@ -23,11 +23,14 @@ export interface DecryptionParams {
  * Note: Using PBKDF2 instead of Argon2id for Next.js build compatibility
  * PBKDF2 with 100,000 iterations provides strong security for key derivation
  */
-export async function deriveUserKey(password: string, salt: string): Promise<Uint8Array> {
+export async function deriveUserKey(
+  password: string,
+  salt: string
+): Promise<Uint8Array> {
   const encoder = new TextEncoder();
   const passwordBuffer = encoder.encode(password);
   const saltBuffer = encoder.encode(salt);
-  
+
   // Import password as key material
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
@@ -36,19 +39,19 @@ export async function deriveUserKey(password: string, salt: string): Promise<Uin
     false,
     ['deriveBits']
   );
-  
+
   // Derive 32-byte key using PBKDF2
   const derivedBits = await crypto.subtle.deriveBits(
     {
       name: 'PBKDF2',
       salt: saltBuffer,
       iterations: 100000, // High iteration count for security
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     },
     keyMaterial,
     256 // 32 bytes * 8 bits
   );
-  
+
   return new Uint8Array(derivedBits);
 }
 
@@ -62,43 +65,57 @@ export function generateCIK(): Uint8Array {
 /**
  * Wraps CIK with Master Key XOR User Key (MK⊕UK)
  */
-export async function wrapCIK(cik: Uint8Array, masterKey: Uint8Array, userKey: Uint8Array): Promise<string> {
+export async function wrapCIK(
+  cik: Uint8Array,
+  masterKey: Uint8Array,
+  userKey: Uint8Array
+): Promise<string> {
   // XOR master key with user key
   const wrappingKey = new Uint8Array(32);
   for (let i = 0; i < Math.min(32, masterKey.length, userKey.length); i++) {
+    // eslint-disable-next-line security/detect-object-injection
     wrappingKey[i] = masterKey[i] ^ userKey[i];
   }
-  
+
   // Encrypt CIK with wrapping key using ChaCha20-Poly1305
   const nonce = randomBytes(24);
   const cipher = xchacha20poly1305(wrappingKey, nonce);
   const encrypted = cipher.encrypt(cik);
-  
+
   // Combine nonce + encrypted CIK and encode as base64
   const combined = new Uint8Array(nonce.length + encrypted.length);
   combined.set(nonce);
   combined.set(encrypted, nonce.length);
-  
+
   return btoa(String.fromCharCode(...combined));
 }
 
 /**
  * Unwraps CIK using Master Key XOR User Key (MK⊕UK)
  */
-export async function unwrapCIK(encryptedCIK: string, masterKey: Uint8Array, userKey: Uint8Array): Promise<Uint8Array> {
+export async function unwrapCIK(
+  encryptedCIK: string,
+  masterKey: Uint8Array,
+  userKey: Uint8Array
+): Promise<Uint8Array> {
   // Decode base64
-  const combined = new Uint8Array(atob(encryptedCIK).split('').map(c => c.charCodeAt(0)));
-  
+  const combined = new Uint8Array(
+    atob(encryptedCIK)
+      .split('')
+      .map(c => c.charCodeAt(0))
+  );
+
   // Extract nonce and encrypted data
   const nonce = combined.slice(0, 24);
   const encrypted = combined.slice(24);
-  
+
   // XOR master key with user key
   const wrappingKey = new Uint8Array(32);
   for (let i = 0; i < Math.min(32, masterKey.length, userKey.length); i++) {
+    // eslint-disable-next-line security/detect-object-injection
     wrappingKey[i] = masterKey[i] ^ userKey[i];
   }
-  
+
   // Decrypt CIK
   const cipher = xchacha20poly1305(wrappingKey, nonce);
   return cipher.decrypt(encrypted);
@@ -107,27 +124,42 @@ export async function unwrapCIK(encryptedCIK: string, masterKey: Uint8Array, use
 /**
  * Encrypts payload with CIK using ChaCha20-Poly1305
  */
-export function encryptPayload(payload: string, cik: Uint8Array): { ciphertext: string; nonce: string } {
+export function encryptPayload(
+  payload: string,
+  cik: Uint8Array
+): { ciphertext: string; nonce: string } {
   const nonce = randomBytes(24);
   const cipher = xchacha20poly1305(cik, nonce);
   const encrypted = cipher.encrypt(new TextEncoder().encode(payload));
-  
+
   return {
     ciphertext: btoa(String.fromCharCode(...encrypted)),
-    nonce: btoa(String.fromCharCode(...nonce))
+    nonce: btoa(String.fromCharCode(...nonce)),
   };
 }
 
 /**
  * Decrypts payload with CIK using ChaCha20-Poly1305
  */
-export function decryptPayload(ciphertext: string, nonce: string, cik: Uint8Array): string {
-  const encryptedData = new Uint8Array(atob(ciphertext).split('').map(c => c.charCodeAt(0)));
-  const nonceData = new Uint8Array(atob(nonce).split('').map(c => c.charCodeAt(0)));
-  
+export function decryptPayload(
+  ciphertext: string,
+  nonce: string,
+  cik: Uint8Array
+): string {
+  const encryptedData = new Uint8Array(
+    atob(ciphertext)
+      .split('')
+      .map(c => c.charCodeAt(0))
+  );
+  const nonceData = new Uint8Array(
+    atob(nonce)
+      .split('')
+      .map(c => c.charCodeAt(0))
+  );
+
   const cipher = xchacha20poly1305(cik, nonceData);
   const decrypted = cipher.decrypt(encryptedData);
-  
+
   return new TextDecoder().decode(decrypted);
 }
 
@@ -150,20 +182,20 @@ export async function encryptSecret(
 ): Promise<EncryptionResult> {
   // Derive user key from password
   const userKey = await deriveUserKey(password, salt);
-  
+
   // Generate random CIK
   const cik = generateCIK();
-  
+
   // Wrap CIK with MK⊕UK
   const encryptedCIK = await wrapCIK(cik, masterKey, userKey);
-  
+
   // Encrypt payload with CIK
   const { ciphertext, nonce } = encryptPayload(payload, cik);
-  
+
   return {
     ciphertext,
     encryptedCIK,
-    nonce
+    nonce,
   };
 }
 
@@ -171,16 +203,20 @@ export async function encryptSecret(
  * Full decryption flow: derive UK, unwrap CIK, decrypt payload
  */
 export async function decryptSecret(
-  params: DecryptionParams & { password: string; salt: string; masterKey: Uint8Array }
+  params: DecryptionParams & {
+    password: string;
+    salt: string;
+    masterKey: Uint8Array;
+  }
 ): Promise<string> {
   const { ciphertext, encryptedCIK, nonce, password, salt, masterKey } = params;
-  
+
   // Derive user key from password
   const userKey = await deriveUserKey(password, salt);
-  
+
   // Unwrap CIK
   const cik = await unwrapCIK(encryptedCIK, masterKey, userKey);
-  
+
   // Decrypt payload
   return decryptPayload(ciphertext, nonce, cik);
 }
