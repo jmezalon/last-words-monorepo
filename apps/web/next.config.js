@@ -11,17 +11,30 @@ const nextConfig = {
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     WEBAUTHN_ORIGIN: process.env.WEBAUTHN_ORIGIN,
     WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID,
-    AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST,
+    AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST || 'true',
     AUTH_DISABLE_ADAPTER: process.env.AUTH_DISABLE_ADAPTER,
     ENABLE_APPLE: process.env.ENABLE_APPLE,
     DATABASE_URL: process.env.DATABASE_URL,
   },
-  // Add webpack configuration to resolve path aliases
+  // Add webpack configuration to resolve path aliases and handle WebAssembly
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': require('path').resolve(__dirname, 'src'),
     };
+    
+    // Enable WebAssembly support for argon2-browser
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+    
+    // Handle .wasm files
+    config.module.rules.push({
+      test: /\.wasm$/,
+      type: 'webassembly/async',
+    });
+    
     return config;
   },
   // Add proper error handling for Amplify

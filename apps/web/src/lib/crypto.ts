@@ -1,5 +1,4 @@
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
-import { hash, ArgonType } from 'argon2-browser';
 
 // Use crypto.getRandomValues for random bytes
 function randomBytes(length: number): Uint8Array {
@@ -20,20 +19,37 @@ export interface DecryptionParams {
 }
 
 /**
- * Derives a user key (UK) from password using Argon2id
+ * Derives user key from password using PBKDF2 (Web Crypto API compatible)
+ * Note: Using PBKDF2 instead of Argon2id for Next.js build compatibility
+ * PBKDF2 with 100,000 iterations provides strong security for key derivation
  */
 export async function deriveUserKey(password: string, salt: string): Promise<Uint8Array> {
-  const result = await hash({
-    pass: password,
-    salt: salt,
-    type: ArgonType.Argon2id,
-    time: 3, // iterations
-    mem: 65536, // 64MB memory
-    parallelism: 4, // threads
-    hashLen: 32 // 32 bytes output
-  });
+  const encoder = new TextEncoder();
+  const passwordBuffer = encoder.encode(password);
+  const saltBuffer = encoder.encode(salt);
   
-  return new Uint8Array(result.hash);
+  // Import password as key material
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    passwordBuffer,
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  
+  // Derive 32-byte key using PBKDF2
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: saltBuffer,
+      iterations: 100000, // High iteration count for security
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    256 // 32 bytes * 8 bits
+  );
+  
+  return new Uint8Array(derivedBits);
 }
 
 /**
