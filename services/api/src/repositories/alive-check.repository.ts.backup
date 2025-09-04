@@ -1,0 +1,131 @@
+import { Injectable } from '@nestjs/common';
+import { AliveCheck } from '@prisma/client';
+import { BaseRepository } from './base.repository';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateAliveCheckDto, UpdateAliveCheckDto, PaginationDto } from '../common/validators/zod-schemas';
+import { PaginatedResponseDto } from '../common/dto/base.dto';
+
+@Injectable()
+export class AliveCheckRepository extends BaseRepository<AliveCheck, CreateAliveCheckDto, UpdateAliveCheckDto> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  async create(data: CreateAliveCheckDto, userId: string): Promise<AliveCheck> {
+    const nextCheckDue = new Date();
+    nextCheckDue.setDate(nextCheckDue.getDate() + data.intervalDays);
+
+    return this.prisma.aliveCheck.create({
+      data: {
+        ...data,
+        userId,
+        nextCheckDue,
+      },
+    });
+  }
+
+  async findById(id: string, userId?: string): Promise<AliveCheck | null> {
+    const where: any = { id };
+    if (userId) {
+      where.userId = userId;
+    }
+
+    return this.prisma.aliveCheck.findUnique({ where });
+  }
+
+  async update(id: string, data: UpdateAliveCheckDto, userId?: string): Promise<AliveCheck> {
+    const where: any = { id };
+    if (userId) {
+      where.userId = userId;
+    }
+
+    const updateData: any = { ...data };
+    
+    // Recalculate next check due if interval changed
+    if (data.intervalDays) {
+      const nextCheckDue = new Date();
+      nextCheckDue.setDate(nextCheckDue.getDate() + data.intervalDays);
+      updateData.nextCheckDue = nextCheckDue;
+    }
+
+    return this.prisma.aliveCheck.update({
+      where,
+      data: updateData,
+    });
+  }
+
+  async delete(id: string, userId?: string): Promise<void> {
+    const where: any = { id };
+    if (userId) {
+      where.userId = userId;
+    }
+
+    await this.prisma.aliveCheck.delete({ where });
+  }
+
+  async findMany(
+    pagination: PaginationDto,
+    userId?: string,
+    filters?: Record<string, any>
+  ): Promise<PaginatedResponseDto<AliveCheck>> {
+    const query = this.buildPaginationQuery(pagination);
+    
+    const where: any = {};
+    if (userId) {
+      where.userId = userId;
+    }
+    if (filters) {
+      Object.assign(where, filters);
+    }
+    
+    query.where = where;
+
+    const checks = await this.prisma.aliveCheck.findMany(query);
+    return this.buildPaginatedResponse(checks, pagination);
+  }
+
+  async findOverdueChecks(): Promise<AliveCheck[]> {
+    return this.prisma.aliveCheck.findMany({
+      where: {
+        isActive: true,
+        nextCheckDue: { lte: new Date() },
+      },
+      include: { user: true },
+    });
+  }
+
+  async recordCheckIn(id: string, userId?: string): Promise<AliveCheck> {
+    const where: any = { id };
+    if (userId) {
+      where.userId = userId;
+    }
+
+    const check = await this.prisma.aliveCheck.findUnique({ where });
+    if (!check) {
+      throw new Error('Alive check not found');
+    }
+
+    const nextCheckDue = new Date();
+    nextCheckDue.setDate(nextCheckDue.getDate() + check.intervalDays);
+
+    return this.prisma.aliveCheck.update({
+      where,
+      data: {
+        lastCheckAt: new Date(),
+        nextCheckDue,
+        consecutiveMissed: 0,
+        isOverdue: false,
+      },
+    });
+  }
+
+  async markOverdue(id: string): Promise<AliveCheck> {
+    return this.prisma.aliveCheck.update({
+      where: { id },
+      data: {
+        isOverdue: true,
+        consecutiveMissed: { increment: 1 },
+      },
+    });
+  }
+}

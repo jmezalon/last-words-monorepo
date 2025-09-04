@@ -1,0 +1,112 @@
+import { Injectable } from '@nestjs/common';
+import { AuditLog } from '@prisma/client';
+import { BaseRepository } from './base.repository';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateAuditLogDto, PaginationDto } from '../common/validators/zod-schemas';
+import { PaginatedResponseDto } from '../common/dto/base.dto';
+
+@Injectable()
+export class AuditLogRepository extends BaseRepository<AuditLog, CreateAuditLogDto, never> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  async create(data: CreateAuditLogDto, userId?: string): Promise<AuditLog> {
+    return this.prisma.auditLog.create({
+      data: {
+        ...data,
+        userId,
+      },
+    });
+  }
+
+  async findById(id: string, userId?: string): Promise<AuditLog | null> {
+    const where: any = { id };
+    if (userId) {
+      where.userId = userId;
+    }
+
+    return this.prisma.auditLog.findUnique({ where });
+  }
+
+  // Audit logs are immutable - no update method
+  async update(): Promise<never> {
+    throw new Error('Audit logs cannot be updated');
+  }
+
+  // Audit logs are never deleted - only archived
+  async delete(): Promise<never> {
+    throw new Error('Audit logs cannot be deleted');
+  }
+
+  async findMany(
+    pagination: PaginationDto,
+    userId?: string,
+    filters?: Record<string, any>
+  ): Promise<PaginatedResponseDto<AuditLog>> {
+    const query = this.buildPaginationQuery(pagination);
+    
+    const where: any = {};
+    if (userId) {
+      where.userId = userId;
+    }
+    if (filters) {
+      Object.assign(where, filters);
+    }
+    
+    query.where = where;
+
+    const logs = await this.prisma.auditLog.findMany(query);
+    return this.buildPaginatedResponse(logs, pagination);
+  }
+
+  async findByAction(action: string, userId?: string): Promise<AuditLog[]> {
+    const where: any = { action };
+    if (userId) {
+      where.userId = userId;
+    }
+
+    return this.prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findByEntity(entityType: string, entityId: string, userId?: string): Promise<AuditLog[]> {
+    const where: any = { entityType, entityId };
+    if (userId) {
+      where.userId = userId;
+    }
+
+    return this.prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findHighRiskEvents(userId?: string): Promise<AuditLog[]> {
+    const where: any = {
+      riskLevel: { in: ['HIGH', 'CRITICAL'] },
+    };
+    if (userId) {
+      where.userId = userId;
+    }
+
+    return this.prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findFlaggedEvents(userId?: string): Promise<AuditLog[]> {
+    const where: any = { flagged: true };
+    if (userId) {
+      where.userId = userId;
+    }
+
+    return this.prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+}

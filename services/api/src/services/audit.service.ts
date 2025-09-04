@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { AuditLogRepository } from '../repositories/audit-log.repository';
+// import { AuditLogRepository } from '../repositories/audit-log.repository';
 import { CreateAuditLogDto } from '../common/validators/zod-schemas';
 
 @Injectable()
 export class AuditService {
-  constructor(private auditLogRepository: AuditLogRepository) {}
+  // constructor(private auditLogRepository: AuditLogRepository) {}
 
   async logAction(
     action: string,
@@ -26,8 +26,8 @@ export class AuditService {
       riskLevel,
       flagged: riskLevel === 'HIGH' || riskLevel === 'CRITICAL',
     };
-
-    await this.auditLogRepository.create(auditData, userId);
+    // TODO: Implement audit logging when repository is available
+    console.log('Audit log:', { auditData, userId });
   }
 
   async logUserAction(

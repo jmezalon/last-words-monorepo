@@ -1,0 +1,105 @@
+import { Injectable } from '@nestjs/common';
+import { User } from '@prisma/client';
+import { BaseRepository } from './base.repository';
+import { PrismaService } from '../prisma/prisma.service';
+import { CryptoUtil } from '../common/utils/crypto.util';
+
+export interface CreateUserDto {
+  email: string;
+  name?: string;
+  encryptedPersonalData?: string;
+  masterKeyWrapped?: string;
+  keyDerivationSalt?: string;
+  timezone?: string;
+}
+
+export interface UpdateUserDto {
+  email?: string;
+  name?: string;
+  encryptedPersonalData?: string;
+  masterKeyWrapped?: string;
+  keyDerivationSalt?: string;
+  timezone?: string;
+}
+
+@Injectable()
+export class UserRepository {
+  constructor(private prisma: PrismaService) {}
+
+  async create(data: CreateUserDto): Promise<User> {
+    const { hmac: emailHmac } = CryptoUtil.generateEmailHmac(data.email);
+    
+    return this.prisma.user.create({
+      data: {
+        email: data.email,
+        name: data.name,
+        emailHmac,
+        encryptedPersonalData: data.encryptedPersonalData,
+        masterKeyWrapped: data.masterKeyWrapped,
+        keyDerivationSalt: data.keyDerivationSalt,
+        timezone: data.timezone || 'UTC',
+      },
+    });
+  }
+
+  async findById(id: string): Promise<User | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+    });
+  }
+
+  async findByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findUnique({
+      where: { email },
+    });
+  }
+
+  async findByEmailHmac(emailHmac: string): Promise<User | null> {
+    return this.prisma.user.findFirst({
+      where: { emailHmac },
+    });
+  }
+
+  async update(id: string, data: UpdateUserDto): Promise<User> {
+    const updateData: any = { ...data };
+    
+    // If email is being updated, regenerate HMAC
+    if (data.email) {
+      const { hmac: emailHmac } = CryptoUtil.generateEmailHmac(data.email);
+      updateData.emailHmac = emailHmac;
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: updateData,
+    });
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.user.delete({
+      where: { id },
+    });
+  }
+
+  async findMany(
+    pagination: PaginationDto,
+    userId?: string,
+    filters?: Record<string, any>
+  ): Promise<PaginatedResponseDto<User>> {
+    const query = this.buildPaginationQuery(pagination);
+    
+    if (filters) {
+      query.where = filters;
+    }
+
+    const users = await this.prisma.user.findMany(query);
+    return this.buildPaginatedResponse(users, pagination);
+  }
+
+  async updateLastActivity(id: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: { updatedAt: new Date() },
+    });
+  }
+}

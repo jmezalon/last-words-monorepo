@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -81,7 +81,7 @@ model User {
   
   // User preferences and settings
   timezone              String  @default("UTC")
-  notificationSettings  String? // Encrypted notification preferences (JSON as string)
+  notificationSettings  Json?   // Encrypted notification preferences
   
   // NextAuth relations
   accounts      Account[]
@@ -147,7 +147,7 @@ model Will {
   accessLevel           String  @default("PRIVATE") // PRIVATE, BENEFICIARY_ONLY, PUBLIC
   
   // Release conditions
-  releaseConditions     String // Encrypted conditions for release (JSON as string)
+  releaseConditions     Json // Encrypted conditions for release
   autoReleaseEnabled    Boolean @default(false)
   manualReleaseEnabled  Boolean @default(true)
   
@@ -204,7 +204,7 @@ model Secret {
   
   // Organization
   category              String? // Personal, Financial, Digital, etc.
-  tags                  String? // Searchable tags (comma-separated)
+  tags                  String[] // Searchable tags
   priority              Int     @default(1)
   
   // Status
