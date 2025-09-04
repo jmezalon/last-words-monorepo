@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 import { authenticateWebAuthn } from '@/lib/webauthn';
+import SecretEditor from '@/components/secret-editor';
 
 export default function SecretsPage() {
   const { data: session, status } = useSession();
@@ -40,6 +41,30 @@ export default function SecretsPage() {
       setError(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
       setIsAuthenticating(false);
+    }
+  };
+
+  const handleSaveSecret = async (secretData: {
+    title: string;
+    description: string;
+    content: string;
+    category: string;
+    tags: string[];
+    encryptedCIK: string;
+    ciphertext: string;
+    nonce: string;
+  }) => {
+    try {
+      // TODO: Implement actual API call to save encrypted secret
+      console.log('Saving secret:', secretData);
+      
+      // For now, just simulate a successful save
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('Secret saved successfully');
+    } catch (error) {
+      console.error('Error saving secret:', error);
+      throw error;
     }
   };
 
@@ -127,86 +152,7 @@ export default function SecretsPage() {
               </div>
             </div>
 
-            <div className='space-y-6'>
-              <div className='bg-gray-50 rounded-lg p-6'>
-                <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                  Personal Information
-                </h3>
-                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                  <div>
-                    <label className='block text-sm font-medium text-gray-700'>
-                      Social Security Number
-                    </label>
-                    <p className='mt-1 text-sm text-gray-900'>***-**-1234</p>
-                  </div>
-                  <div>
-                    <label className='block text-sm font-medium text-gray-700'>
-                      Bank Account
-                    </label>
-                    <p className='mt-1 text-sm text-gray-900'>
-                      ****-****-****-5678
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className='bg-gray-50 rounded-lg p-6'>
-                <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                  Digital Assets
-                </h3>
-                <div className='space-y-3'>
-                  <div>
-                    <label className='block text-sm font-medium text-gray-700'>
-                      Cryptocurrency Wallet
-                    </label>
-                    <p className='mt-1 text-sm text-gray-900 font-mono'>
-                      1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
-                    </p>
-                  </div>
-                  <div>
-                    <label className='block text-sm font-medium text-gray-700'>
-                      Recovery Phrase
-                    </label>
-                    <p className='mt-1 text-sm text-gray-900'>
-                      abandon abandon abandon abandon abandon abandon abandon
-                      abandon abandon abandon abandon about
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className='bg-gray-50 rounded-lg p-6'>
-                <h3 className='text-lg font-medium text-gray-900 mb-4'>
-                  Important Documents
-                </h3>
-                <div className='space-y-2'>
-                  <div className='flex items-center justify-between p-3 bg-white rounded border'>
-                    <span className='text-sm text-gray-900'>
-                      Last Will and Testament
-                    </span>
-                    <button className='text-indigo-600 hover:text-indigo-500 text-sm'>
-                      Download
-                    </button>
-                  </div>
-                  <div className='flex items-center justify-between p-3 bg-white rounded border'>
-                    <span className='text-sm text-gray-900'>
-                      Insurance Policies
-                    </span>
-                    <button className='text-indigo-600 hover:text-indigo-500 text-sm'>
-                      Download
-                    </button>
-                  </div>
-                  <div className='flex items-center justify-between p-3 bg-white rounded border'>
-                    <span className='text-sm text-gray-900'>
-                      Property Deeds
-                    </span>
-                    <button className='text-indigo-600 hover:text-indigo-500 text-sm'>
-                      Download
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <SecretEditor onSave={handleSaveSecret} />
           </div>
         </div>
       </div>

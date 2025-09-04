@@ -62,6 +62,28 @@ export const CreateSecretSchema = z.object({
   priority: z.number().int().min(1).default(1),
 });
 
+export const CreateSecretDtoSchema = z.object({
+  willId: z.string().optional(),
+  encryptedTitle: z.string().optional(),
+  encryptedDescription: z.string().optional(),
+  encryptedContent: z.string().optional(),
+  secretType: z.string().optional(),
+  encryptedMetadata: z.string().optional(),
+  category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  priority: z.number().optional(),
+  requiresWebAuthn: z.boolean().optional(),
+  accessLevel: z.string().optional(),
+  // Client-side encryption fields
+  encryptedCIK: z.string(),
+  ciphertext: z.string(),
+  nonce: z.string(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export type CreateSecretDto = z.infer<typeof CreateSecretDtoSchema>;
+
 export const UpdateSecretSchema = CreateSecretSchema.partial().omit({
   willId: true,
 });
@@ -122,7 +144,7 @@ export type CreateBeneficiaryDto = z.infer<typeof CreateBeneficiarySchema>;
 export type UpdateBeneficiaryDto = z.infer<typeof UpdateBeneficiarySchema>;
 export type CreateWillDto = z.infer<typeof CreateWillSchema>;
 export type UpdateWillDto = z.infer<typeof UpdateWillSchema>;
-export type CreateSecretDto = z.infer<typeof CreateSecretSchema>;
+export type CreateSecretDtoOld = z.infer<typeof CreateSecretSchema>;
 export type UpdateSecretDto = z.infer<typeof UpdateSecretSchema>;
 export type CreateAliveCheckDto = z.infer<typeof CreateAliveCheckSchema>;
 export type UpdateAliveCheckDto = z.infer<typeof UpdateAliveCheckSchema>;
