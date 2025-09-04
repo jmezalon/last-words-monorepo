@@ -88,11 +88,19 @@ model User {
   sessions      Session[]
   authenticators Authenticator[]
   
+  // Alive check system
+  lastAliveCheck        DateTime?
+  aliveCheckStatus      String   @default("ACTIVE") // ACTIVE, PENDING, CONFIRMED, OVERDUE
+  legacyReleaseScheduled Boolean @default(false)
+  legacyReleaseDate     DateTime?
+  
   // Last Words relations
   wills         Will[]
   beneficiaries Beneficiary[]
+  trustedContacts TrustedContact[]
   aliveChecks   AliveCheck[]
   auditLogs     AuditLog[]
+  emailTracking EmailTracking[]
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -168,6 +176,70 @@ model Will {
   @@index([status])
 }
 
+model TrustedContact {
+  id                    String @id @default(cuid())
+  userId                String
+  
+  // Contact information (encrypted)
+  name                  String
+  email                 String
+  userEmail             String? // Original user's email for reference
+  
+  // Status
+  isActive              Boolean @default(true)
+  
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+model AliveCheck {
+  id                    String @id @default(cuid())
+  userId                String
+  
+  // Check details
+  checkType             String // INITIAL, REMINDER, FINAL, ESCALATION
+  token                 String @unique
+  sentAt                DateTime
+  expiresAt             DateTime
+  confirmedAt           DateTime?
+
+  // Status
+  status                String @default("SENT") // SENT, OPENED, CLICKED, CONFIRMED, EXPIRED
+
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@index([status])
+}
+
+model EmailTracking {
+  id                    String @id @default(cuid())
+  userId                String
+  checkId               String?
+  
+  // Event details
+  eventType             String // OPEN, CLICK, BOUNCE, DELIVER, etc.
+  timestamp             DateTime
+  userAgent             String?
+  ipAddress             String?
+  metadata              Json?
+  
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt             DateTime @default(now())
+  
+  @@index([userId])
+  @@index([eventType])
+}
+
 model WillBeneficiary {
   id            String @id @default(cuid())
   willId        String
@@ -220,37 +292,6 @@ model Secret {
   @@index([category])
 }
 
-model AliveCheck {
-  id                    String @id @default(cuid())
-  userId                String
-  
-  // Check configuration
-  checkType             String // manual, email_response, app_checkin, biometric
-  intervalDays          Int    @default(30) // How often to check
-  gracePeriodDays       Int    @default(7)  // Grace period before triggering
-  
-  // Check data
-  lastCheckAt           DateTime?
-  nextCheckDue          DateTime
-  consecutiveMissed     Int    @default(0)
-  maxMissedBeforeTrigger Int   @default(3)
-  
-  // Status
-  isActive              Boolean @default(true)
-  isOverdue             Boolean @default(false)
-  
-  // Notification settings (encrypted)
-  encryptedNotificationConfig String?
-  
-  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  @@index([userId])
-  @@index([nextCheckDue])
-  @@index([isActive, isOverdue])
-}
 
 model ReleaseEvent {
   id                    String @id @default(cuid())

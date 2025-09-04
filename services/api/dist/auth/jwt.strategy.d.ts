@@ -16,6 +16,10 @@ export declare class JwtStrategy extends JwtStrategy_base {
         keyDerivationSalt: string | null;
         timezone: string;
         notificationSettings: import("@prisma/client/runtime/library").JsonValue | null;
+        lastAliveCheck: Date | null;
+        aliveCheckStatus: string;
+        legacyReleaseScheduled: boolean;
+        legacyReleaseDate: Date | null;
         createdAt: Date;
         updatedAt: Date;
     }>;
