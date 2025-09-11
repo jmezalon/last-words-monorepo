@@ -1,0 +1,408 @@
+name: Security Scan
+
+on:
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of security scan to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - sast
+          - dependency
+          - dast
+      target_url:
+        description: 'Target URL for DAST scan (optional)'
+        required: false
+        default: 'https://staging.lastwords.app'
+
+env:
+  NODE_VERSION: '18'
+  PNPM_VERSION: '8'
+
+jobs:
+  sast-comprehensive:
+    name: Comprehensive SAST Scan
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'sast' || github.event.schedule
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Semgrep with comprehensive rulesets
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/owasp-top-ten
+            p/javascript
+            p/typescript
+            p/nodejs
+            p/react
+            p/nextjs
+            p/rust
+            p/docker
+            p/terraform
+            p/nginx
+            p/jwt
+            p/crypto
+            p/sql-injection
+            p/xss
+            p/command-injection
+            p/path-traversal
+            p/insecure-transport
+            p/hardcoded-secrets
+            p/csrf
+            p/deserialization
+            p/xxe
+            p/ldap-injection
+            p/nosql-injection
+            p/template-injection
+            p/prototype-pollution
+            p/regex-dos
+            p/open-redirect
+            p/ssrf
+            p/race-condition
+            p/timing-attack
+          generateSarif: "1"
+          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep-comprehensive
+
+      - name: CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript, typescript
+          queries: security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: codeql-security
+
+  dependency-comprehensive:
+    name: Comprehensive Dependency Scan
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'dependency' || github.event.schedule
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Snyk comprehensive scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --all-projects --severity-threshold=medium --sarif-file-output=snyk-comprehensive.sarif
+
+      - name: Upload Snyk SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-comprehensive.sarif
+          category: snyk-comprehensive
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run Rust security audit
+        working-directory: services/crypto
+        run: |
+          cargo audit --json > cargo-audit.json || true
+          # Convert to SARIF format
+          python3 -c "
+          import json
+          import sys
+          
+          try:
+              with open('cargo-audit.json', 'r') as f:
+                  audit_data = json.load(f)
+              
+              sarif = {
+                  'version': '2.1.0',
+                  'runs': [{
+                      'tool': {
+                          'driver': {
+                              'name': 'cargo-audit',
+                              'version': '0.18.0'
+                          }
+                      },
+                      'results': []
+                  }]
+              }
+              
+              if 'vulnerabilities' in audit_data:
+                  for vuln in audit_data['vulnerabilities']:
+                      result = {
+                          'ruleId': vuln.get('advisory', {}).get('id', 'unknown'),
+                          'message': {
+                              'text': vuln.get('advisory', {}).get('title', 'Security vulnerability')
+                          },
+                          'level': 'error' if vuln.get('advisory', {}).get('severity') == 'high' else 'warning',
+                          'locations': [{
+                              'physicalLocation': {
+                                  'artifactLocation': {
+                                      'uri': 'Cargo.toml'
+                                  }
+                              }
+                          }]
+                      }
+                      sarif['runs'][0]['results'].append(result)
+              
+              with open('cargo-audit.sarif', 'w') as f:
+                  json.dump(sarif, f, indent=2)
+          except Exception as e:
+              print(f'Error processing cargo audit: {e}', file=sys.stderr)
+          "
+
+      - name: Upload Cargo Audit SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('services/crypto/cargo-audit.sarif') != ''
+        with:
+          sarif_file: services/crypto/cargo-audit.sarif
+          category: cargo-audit
+
+      - name: OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'Last Words'
+          path: '.'
+          format: 'SARIF'
+          out: 'dependency-check-report.sarif'
+          args: >
+            --enableRetired
+            --enableExperimental
+            --nvdApiKey ${{ secrets.NVD_API_KEY }}
+
+      - name: Upload OWASP Dependency Check SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: dependency-check-report.sarif
+          category: owasp-dependency-check
+
+  dast-comprehensive:
+    name: Comprehensive DAST Scan
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'dast' || github.event.schedule
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build applications
+        run: pnpm build
+
+      - name: Start test environment
+        run: |
+          # Start web application
+          cd apps/web
+          nohup npm start &
+          echo $! > /tmp/web-server.pid
+          
+          # Start API service
+          cd ../../services/api
+          nohup npm run start:prod &
+          echo $! > /tmp/api-server.pid
+          
+          sleep 45
+
+      - name: Wait for services to be ready
+        run: |
+          timeout 120 bash -c 'until curl -f http://localhost:3000/health 2>/dev/null; do sleep 3; done' || true
+          timeout 120 bash -c 'until curl -f http://localhost:3001/health 2>/dev/null; do sleep 3; done' || true
+
+      - name: Run OWASP ZAP Full Scan
+        uses: zaproxy/action-full-scan@v0.10.0
+        with:
+          target: ${{ github.event.inputs.target_url || 'http://localhost:3000' }}
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a -d -T 30 -m 10 -z "-config scanner.maxRuleDurationInMins=10"'
+          fail_action: true
+          allow_issue_writing: false
+
+      - name: Run Nuclei Security Scanner
+        uses: projectdiscovery/nuclei-action@main
+        with:
+          target: ${{ github.event.inputs.target_url || 'http://localhost:3000' }}
+          templates: |
+            cves/
+            vulnerabilities/
+            security-misconfiguration/
+            default-logins/
+            exposed-panels/
+            exposures/
+            misconfiguration/
+            network/
+            ssl/
+            technologies/
+          output: nuclei-results.json
+          json: true
+
+      - name: Convert Nuclei results to SARIF
+        run: |
+          python3 -c "
+          import json
+          import sys
+          
+          try:
+              with open('nuclei-results.json', 'r') as f:
+                  lines = f.readlines()
+              
+              sarif = {
+                  'version': '2.1.0',
+                  'runs': [{
+                      'tool': {
+                          'driver': {
+                              'name': 'nuclei',
+                              'version': '3.0.0'
+                          }
+                      },
+                      'results': []
+                  }]
+              }
+              
+              for line in lines:
+                  if line.strip():
+                      try:
+                          finding = json.loads(line)
+                          severity = finding.get('info', {}).get('severity', 'info')
+                          level = 'error' if severity in ['high', 'critical'] else 'warning' if severity == 'medium' else 'note'
+                          
+                          result = {
+                              'ruleId': finding.get('template-id', 'unknown'),
+                              'message': {
+                                  'text': finding.get('info', {}).get('name', 'Security finding')
+                              },
+                              'level': level,
+                              'locations': [{
+                                  'physicalLocation': {
+                                      'artifactLocation': {
+                                          'uri': finding.get('matched-at', 'unknown')
+                                      }
+                                  }
+                              }]
+                          }
+                          sarif['runs'][0]['results'].append(result)
+                      except json.JSONDecodeError:
+                          continue
+              
+              with open('nuclei-results.sarif', 'w') as f:
+                  json.dump(sarif, f, indent=2)
+          except Exception as e:
+              print(f'Error processing nuclei results: {e}', file=sys.stderr)
+          "
+
+      - name: Upload Nuclei SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('nuclei-results.sarif') != ''
+        with:
+          sarif_file: nuclei-results.sarif
+          category: nuclei-dast
+
+      - name: Stop test environment
+        if: always()
+        run: |
+          if [ -f /tmp/web-server.pid ]; then
+            kill $(cat /tmp/web-server.pid) || true
+          fi
+          if [ -f /tmp/api-server.pid ]; then
+            kill $(cat /tmp/api-server.pid) || true
+          fi
+
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [sast-comprehensive, dependency-comprehensive, dast-comprehensive]
+    if: always()
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Generate security summary
+        run: |
+          echo "# 🔒 Security Scan Report" > security-report.md
+          echo "Generated: $(date -u)" >> security-report.md
+          echo "" >> security-report.md
+          echo "## Scan Results" >> security-report.md
+          echo "- **SAST Scan**: ${{ needs.sast-comprehensive.result }}" >> security-report.md
+          echo "- **Dependency Scan**: ${{ needs.dependency-comprehensive.result }}" >> security-report.md
+          echo "- **DAST Scan**: ${{ needs.dast-comprehensive.result }}" >> security-report.md
+          echo "" >> security-report.md
+          
+          if [[ "${{ needs.sast-comprehensive.result }}" == "failure" || "${{ needs.dependency-comprehensive.result }}" == "failure" || "${{ needs.dast-comprehensive.result }}" == "failure" ]]; then
+            echo "## ❌ Security Issues Detected" >> security-report.md
+            echo "High-severity security findings require immediate attention." >> security-report.md
+            echo "Review the Security tab for detailed findings." >> security-report.md
+          else
+            echo "## ✅ Security Scans Passed" >> security-report.md
+            echo "No high-severity security issues detected." >> security-report.md
+          fi
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: security-report.md

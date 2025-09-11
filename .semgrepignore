@@ -1,0 +1,63 @@
+# Semgrep ignore patterns for Last Words monorepo
+
+# Build artifacts and dependencies
+node_modules/
+dist/
+build/
+target/
+.next/
+.turbo/
+coverage/
+
+# Generated files
+*.d.ts
+*.js.map
+prisma/migrations/
+amplify/
+
+# Test files (reduce noise but still scan for security issues)
+# *.test.ts
+# *.test.js
+# *.spec.ts
+# *.spec.js
+
+# Configuration files that may have false positives
+.eslintrc.js
+.prettierrc
+commitlint.config.js
+
+# Crypto libraries - allow legitimate crypto usage
+# Don't ignore crypto files completely, but reduce false positives
+apps/web/src/lib/crypto.ts:generic.secrets.security.detected-non-cryptographic-random-api
+services/api/src/crypto/:generic.secrets.security.detected-non-cryptographic-random-api
+
+# Shamir secret sharing - legitimate cryptographic operations
+apps/web/src/lib/shamir.ts:javascript.lang.security.detect-object-injection.detect-object-injection
+services/api/src/shamir/:javascript.lang.security.detect-object-injection.detect-object-injection
+
+# WebAuthn and authentication - legitimate credential handling
+services/api/src/auth/:generic.secrets.security.detected-hardcoded-password
+apps/web/src/lib/webauthn.ts:generic.secrets.security.detected-hardcoded-password
+
+# Database and ORM - legitimate dynamic queries
+services/api/src/repositories/:javascript.sequelize.security.audit.sequelize-injection.sequelize-injection
+prisma/:generic.secrets.security.detected-hardcoded-password
+
+# Environment and configuration
+.env*
+*.env
+amplify/backend.ts:generic.secrets.security.detected-hardcoded-password
+
+# Infrastructure as Code - may contain example values
+infra/terraform/:terraform.lang.security.terraform-hardcoded-secret.terraform-hardcoded-secret
+infra/security/:generic.secrets.security.detected-hardcoded-password
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+
+# Temporary and cache files
+.DS_Store
+*.log
+*.tmp
+.cache/

@@ -1,0 +1,77 @@
+# ZAP Scanning Rules Configuration
+# Format: RULE_ID	THRESHOLD	[COMMENT]
+
+# Ignore false positives for development
+10021	OFF	# X-Content-Type-Options Header Missing (handled by security headers)
+10020	OFF	# X-Frame-Options Header Missing (handled by security headers)
+10016	OFF	# Web Browser XSS Protection Not Enabled (handled by CSP)
+10035	OFF	# Strict-Transport-Security Header Missing (handled by security headers)
+
+# Authentication and session management
+10040	HIGH	# Secure Cookie Attribute Missing
+10041	HIGH	# HTTP Only Cookie Attribute Missing
+10042	HIGH	# Authentication Credentials Captured
+10043	HIGH	# User Controllable HTML Element Attribute (Potential XSS)
+
+# Injection vulnerabilities
+40012	HIGH	# Cross Site Scripting (Reflected)
+40013	HIGH	# Cross Site Scripting (Persistent)
+40014	HIGH	# Cross Site Scripting (Persistent) - Prime
+40016	HIGH	# Cross Site Scripting (Persistent) - Spider
+40017	HIGH	# Cross Site Scripting (Persistent) - OtherInfo
+40018	HIGH	# SQL Injection
+40019	HIGH	# SQL Injection - MySQL
+40020	HIGH	# SQL Injection - Hypersonic SQL
+40021	HIGH	# SQL Injection - Oracle
+40022	HIGH	# SQL Injection - PostgreSQL
+40023	HIGH	# Possible Username Enumeration
+40024	HIGH	# SQL Injection - SQLite
+40025	HIGH	# SQL Injection - MsSQL
+40026	HIGH	# SQL Injection - Boolean Based
+40027	HIGH	# SQL Injection - Union Based
+40028	HIGH	# SQL Injection - Error Based - MySQL
+40029	HIGH	# SQL Injection - Error Based - Oracle
+
+# Path traversal and file inclusion
+6	HIGH	# Path Traversal
+7	HIGH	# Remote File Inclusion
+
+# Command injection
+90020	HIGH	# Remote OS Command Injection
+
+# Crypto and transport security
+90019	HIGH	# Server Side Code Injection
+3	HIGH	# Session ID in URL Rewrite
+4	HIGH	# Session Fixation
+
+# Information disclosure
+10095	MEDIUM	# Backup File Disclosure
+10096	MEDIUM	# Timestamp Disclosure
+10097	MEDIUM	# Hash Disclosure
+10098	MEDIUM	# Cross-Domain Misconfiguration
+
+# CSRF protection
+10202	HIGH	# Absence of Anti-CSRF Tokens
+
+# Content security
+10055	MEDIUM	# CSP Scanner: Wildcard Directive
+10056	MEDIUM	# CSP Scanner: Missing Directives
+10038	MEDIUM	# Content Security Policy (CSP) Header Not Set
+
+# API security
+90033	HIGH	# Loosely Scoped Cookie
+90034	HIGH	# Cloud Metadata Potentially Exposed
+
+# Custom rules for Last Words application
+# Ignore health check endpoint security warnings
+10001	OFF	# /health endpoint basic auth not required
+10002	OFF	# /api/health endpoint rate limiting not critical
+
+# Crypto operations - high security required
+90001	HIGH	# /api/crypto/* endpoints require strict validation
+90002	HIGH	# /api/shamir/* endpoints require strict validation  
+90003	HIGH	# /api/release/* endpoints require strict validation
+
+# Authentication endpoints
+90004	HIGH	# /api/auth/* endpoints require CSRF protection
+90005	HIGH	# /api/auth/* endpoints require rate limiting

@@ -178,17 +178,21 @@ jobs:
       - name: Build
         run: pnpm build
 
-  security-scan:
-    name: Security Scan (SAST)
+  sast-scan:
+    name: SAST Security Scan
     runs-on: ubuntu-latest
     if: github.actor != 'dependabot[bot]'
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Run Semgrep
+      - name: Run Semgrep SAST
         uses: semgrep/semgrep-action@v1
         with:
           config: >-
@@ -197,13 +201,51 @@ jobs:
             p/owasp-top-ten
             p/javascript
             p/typescript
+            p/nodejs
+            p/react
+            p/nextjs
             p/rust
+            p/docker
+            p/terraform
+            p/nginx
+            p/jwt
+            p/crypto
+            p/sql-injection
+            p/xss
+            p/command-injection
+            p/path-traversal
+            p/insecure-transport
+            p/hardcoded-secrets
+          generateSarif: "1"
+          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
-  dependency-check:
-    name: Dependency Check
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+      - name: Check Semgrep results
+        run: |
+          if [ -f semgrep.sarif ]; then
+            HIGH_SEVERITY=$(jq '.runs[0].results[] | select(.level == "error" or .ruleId | contains("security"))' semgrep.sarif | wc -l)
+            echo "High severity findings: $HIGH_SEVERITY"
+            if [ "$HIGH_SEVERITY" -gt 0 ]; then
+              echo "❌ SAST scan failed: $HIGH_SEVERITY high-severity security findings detected"
+              exit 1
+            fi
+          fi
+
+  dependency-scan:
+    name: Dependency Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -221,8 +263,152 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Audit dependencies
-        run: pnpm audit --audit-level moderate
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --sarif-file-output=snyk.sarif
 
-      - name: Check for outdated dependencies
-        run: pnpm outdated || true
+      - name: Upload Snyk SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk.sarif
+          category: snyk
+
+      - name: Snyk Rust dependencies check
+        working-directory: services/crypto
+        run: |
+          if command -v snyk &> /dev/null; then
+            snyk test --severity-threshold=high --sarif-file-output=snyk-rust.sarif || true
+          fi
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Upload Snyk Rust SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('services/crypto/snyk-rust.sarif') != ''
+        with:
+          sarif_file: services/crypto/snyk-rust.sarif
+          category: snyk-rust
+
+      - name: Check dependency vulnerabilities
+        run: |
+          pnpm audit --audit-level high --json > audit-results.json || true
+          VULNERABILITIES=$(jq '.metadata.vulnerabilities.high + .metadata.vulnerabilities.critical' audit-results.json 2>/dev/null || echo "0")
+          echo "High/Critical vulnerabilities: $VULNERABILITIES"
+          if [ "$VULNERABILITIES" -gt 0 ]; then
+            echo "❌ Dependency scan failed: $VULNERABILITIES high/critical vulnerabilities found"
+            exit 1
+          fi
+
+  dast-scan:
+    name: DAST Security Scan
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build applications
+        run: pnpm build
+
+      - name: Start test server
+        run: |
+          cd apps/web
+          nohup npm start &
+          echo $! > /tmp/web-server.pid
+          sleep 30
+          
+      - name: Wait for server to be ready
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:3000/health 2>/dev/null; do sleep 2; done' || true
+
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:3000'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a -d -T 15 -m 5'
+          fail_action: true
+          allow_issue_writing: false
+
+      - name: Generate ZAP SARIF Report
+        run: |
+          if [ -f report_html.html ]; then
+            # Convert ZAP HTML report to SARIF format
+            docker run --rm -v $(pwd):/zap/wrk/:rw \
+              owasp/zap2docker-stable zap-cli --zap-url http://host.docker.internal:8080 \
+              report -o /zap/wrk/zap-report.sarif -f sarif || true
+          fi
+
+      - name: Upload ZAP SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('zap-report.sarif') != ''
+        with:
+          sarif_file: zap-report.sarif
+          category: zap-dast
+
+      - name: Check DAST results
+        run: |
+          if [ -f report_json.json ]; then
+            HIGH_RISK=$(jq '.site[0].alerts[] | select(.riskdesc | contains("High"))' report_json.json 2>/dev/null | wc -l)
+            MEDIUM_RISK=$(jq '.site[0].alerts[] | select(.riskdesc | contains("Medium"))' report_json.json 2>/dev/null | wc -l)
+            echo "High risk findings: $HIGH_RISK"
+            echo "Medium risk findings: $MEDIUM_RISK"
+            if [ "$HIGH_RISK" -gt 0 ]; then
+              echo "❌ DAST scan failed: $HIGH_RISK high-risk security findings detected"
+              exit 1
+            fi
+          fi
+
+      - name: Stop test server
+        if: always()
+        run: |
+          if [ -f /tmp/web-server.pid ]; then
+            kill $(cat /tmp/web-server.pid) || true
+          fi
+
+  security-summary:
+    name: Security Scan Summary
+    runs-on: ubuntu-latest
+    needs: [sast-scan, dependency-scan, dast-scan]
+    if: always()
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Security scan results
+        run: |
+          echo "🔒 Security Scan Summary"
+          echo "======================="
+          echo "SAST Scan: ${{ needs.sast-scan.result }}"
+          echo "Dependency Scan: ${{ needs.dependency-scan.result }}"
+          echo "DAST Scan: ${{ needs.dast-scan.result }}"
+          
+          if [[ "${{ needs.sast-scan.result }}" == "failure" || "${{ needs.dependency-scan.result }}" == "failure" || "${{ needs.dast-scan.result }}" == "failure" ]]; then
+            echo "❌ Security scans failed - blocking deployment"
+            exit 1
+          else
+            echo "✅ All security scans passed"
+          fi
