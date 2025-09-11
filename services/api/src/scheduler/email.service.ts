@@ -90,6 +90,27 @@ export class EmailService {
   }
 
   /**
+   * Generic email sending method
+   */
+  async sendEmail(options: { to: string; subject: string; html: string }): Promise<boolean> {
+    try {
+      const mailOptions = {
+        from: process.env.FROM_EMAIL || 'noreply@lastwords.app',
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      this.logger.log(`Email sent to ${options.to}, messageId: ${result.messageId}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to send email to ${options.to}:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Send notification to trusted contacts
    */
   async sendTrustedContactNotification(emailData: TrustedContactEmailData): Promise<boolean> {

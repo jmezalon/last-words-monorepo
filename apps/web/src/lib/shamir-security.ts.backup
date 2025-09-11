@@ -1,0 +1,465 @@
+/**
+ * Shamir Secret Sharing Security and Misuse Prevention
+ * Implements comprehensive safeguards against common attack vectors
+ */
+
+import { ShamirShare } from './shamir';
+
+export interface SecurityAuditLog {
+  timestamp: string;
+  event: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  details: string;
+  userAgent?: string;
+  ipAddress?: string;
+}
+
+export interface RateLimitState {
+  attempts: number;
+  lastAttempt: number;
+  blocked: boolean;
+  blockUntil?: number;
+}
+
+export class ShamirSecurityManager {
+  private static instance: ShamirSecurityManager;
+  private rateLimits = new Map<string, RateLimitState>();
+  private auditLogs: SecurityAuditLog[] = [];
+  private readonly MAX_ATTEMPTS_PER_HOUR = 10;
+  private readonly BLOCK_DURATION_MS = 60 * 60 * 1000; // 1 hour
+  private readonly MAX_RECONSTRUCTION_ATTEMPTS = 5;
+
+  static getInstance(): ShamirSecurityManager {
+    if (!ShamirSecurityManager.instance) {
+      ShamirSecurityManager.instance = new ShamirSecurityManager();
+    }
+    return ShamirSecurityManager.instance;
+  }
+
+  /**
+   * Validate share tokens before processing
+   */
+  validateShareTokens(tokens: string[]): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    // Check for empty tokens
+    const emptyTokens = tokens.filter(token => !token.trim());
+    if (emptyTokens.length > 0) {
+      errors.push('All share tokens must be provided');
+    }
+
+    // Check for duplicate tokens
+    const uniqueTokens = new Set(tokens.filter(t => t.trim()));
+    const sanitized: Record<string, unknown> = {};
+    if (uniqueTokens.size !== tokens.filter(t => t.trim()).length) {
+      errors.push('Duplicate share tokens detected');
+      this.logSecurityEvent('duplicate_tokens', 'medium', 'Attempt to use duplicate share tokens');
+    }
+
+    // Check token format
+    for (const token of tokens) {
+      if (token.trim() && !this.isValidTokenFormat(token.trim())) {
+        errors.push('Invalid token format detected');
+        this.logSecurityEvent('invalid_token_format', 'medium', `Invalid token format: ${token.substring(0, 10)}...`);
+      }
+    }
+
+    // Check for suspiciously long tokens (potential injection)
+    const maxTokenLength = 2000; // Reasonable limit for base64 encoded data
+    const longTokens = tokens.filter(token => token.length > maxTokenLength);
+    if (longTokens.length > 0) {
+      errors.push('Token length exceeds maximum allowed size');
+      this.logSecurityEvent('oversized_token', 'high', 'Attempt to use oversized token (potential injection)');
+    }
+
+    return { valid: errors.length === 0, errors };
+  }
+
+  /**
+   * Rate limiting for reconstruction attempts
+   */
+  checkRateLimit(identifier: string): { allowed: boolean; remaining: number; resetTime?: number } {
+    const now = Date.now();
+    const state = this.rateLimits.get(identifier) || {
+      attempts: 0,
+      lastAttempt: 0,
+      blocked: false,
+    };
+
+    // Check if currently blocked
+    if (state.blocked && state.blockUntil && now < state.blockUntil) {
+      return {
+        allowed: false,
+        remaining: 0,
+        resetTime: state.blockUntil,
+      };
+    }
+
+    // Reset if more than an hour has passed
+    if (now - state.lastAttempt > this.BLOCK_DURATION_MS) {
+      state.attempts = 0;
+      state.blocked = false;
+      state.blockUntil = undefined;
+    }
+
+    // Check if limit exceeded
+    if (state.attempts >= this.MAX_ATTEMPTS_PER_HOUR) {
+      state.blocked = true;
+      state.blockUntil = now + this.BLOCK_DURATION_MS;
+      this.rateLimits.set(identifier, state);
+      
+      this.logSecurityEvent('rate_limit_exceeded', 'high', `Rate limit exceeded for ${identifier}`);
+      
+      return {
+        allowed: false,
+        remaining: 0,
+        resetTime: state.blockUntil,
+      };
+    }
+
+    return {
+      allowed: true,
+      remaining: this.MAX_ATTEMPTS_PER_HOUR - state.attempts,
+    };
+  }
+
+  /**
+   * Record reconstruction attempt
+   */
+  recordAttempt(identifier: string, success: boolean): void {
+    const state = this.rateLimits.get(identifier) || {
+      attempts: 0,
+      lastAttempt: 0,
+      blocked: false,
+    };
+
+    state.attempts += 1;
+    state.lastAttempt = Date.now();
+    this.rateLimits.set(identifier, state);
+
+    this.logSecurityEvent(
+      success ? 'reconstruction_success' : 'reconstruction_failure',
+      success ? 'low' : 'medium',
+      `Reconstruction attempt ${success ? 'succeeded' : 'failed'} for ${identifier}`
+    );
+  }
+
+  /**
+   * Validate share consistency
+   */
+  validateShareConsistency(shares: (ShamirShare & { shareData: number[] })[]): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (shares.length === 0) {
+      errors.push('No shares provided');
+      return { valid: false, errors };
+    }
+
+    // Check will ID consistency
+    const willIds = new Set(shares.map(s => s.willId));
+    if (willIds.size > 1) {
+      errors.push('Shares must be from the same will');
+      this.logSecurityEvent('mixed_will_shares', 'high', 'Attempt to combine shares from different wills');
+    }
+
+    // Check for duplicate share indices
+    const shareIndices = shares.map(s => s.shareIndex);
+    if (new Set(shareIndices).size !== shareIndices.length) {
+      errors.push('Duplicate share indices detected');
+      this.logSecurityEvent('duplicate_share_indices', 'high', 'Attempt to use duplicate share indices');
+    }
+
+    // Check share data integrity
+    for (const share of shares) {
+      if (!share.shareData || share.shareData.length !== 32) {
+        errors.push('Invalid share data format');
+        this.logSecurityEvent('invalid_share_data', 'medium', `Invalid share data for index ${share.shareIndex}`);
+      }
+
+      // Check for obviously manipulated data (all zeros, all same value, etc.)
+      if (this.isManipulatedShareData(share.shareData)) {
+        errors.push('Potentially manipulated share data detected');
+        this.logSecurityEvent('manipulated_share_data', 'critical', `Manipulated share data detected for index ${share.shareIndex}`);
+      }
+    }
+
+    // Check temporal consistency (shares should be created around the same time)
+    const creationTimes = shares.map(s => new Date(s.createdAt).getTime());
+    const timeSpread = Math.max(...creationTimes) - Math.min(...creationTimes);
+    const maxAllowedSpread = 24 * 60 * 60 * 1000; // 24 hours
+
+    if (timeSpread > maxAllowedSpread) {
+      errors.push('Shares created too far apart in time');
+      this.logSecurityEvent('temporal_inconsistency', 'medium', `Share creation time spread: ${timeSpread}ms`);
+    }
+
+    return { valid: errors.length === 0, errors };
+  }
+
+  /**
+   * Detect potential brute force attacks
+   */
+  detectBruteForce(identifier: string, shareData: any[]): boolean {
+    // Check for systematic patterns in failed attempts
+    const recentLogs = this.auditLogs
+      .filter(log => log.timestamp > new Date(Date.now() - 60 * 60 * 1000).toISOString())
+      .filter(log => log.event === 'reconstruction_failure');
+
+    if (recentLogs.length > this.MAX_RECONSTRUCTION_ATTEMPTS) {
+      this.logSecurityEvent('brute_force_detected', 'critical', `Potential brute force attack from ${identifier}`);
+      return true;
+    }
+
+    // Check for sequential share manipulation
+    const sequentialAttempts = recentLogs.filter(log => 
+      log.details.includes(identifier) && 
+      log.timestamp > new Date(Date.now() - 10 * 60 * 1000).toISOString()
+    );
+
+    if (sequentialAttempts.length > 3) {
+      this.logSecurityEvent('sequential_manipulation', 'high', `Sequential manipulation attempts from ${identifier}`);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Sanitize input data
+   */
+  public sanitizeInput(input: unknown): unknown {
+    // Remove potentially dangerous characters
+    if (typeof input === 'string') {
+      return input
+        .replace(/[<>\"'&]/g, '') // Remove HTML/XML characters
+        .replace(/javascript:/gi, '') // Remove javascript: protocol
+        .replace(/data:/gi, '') // Remove data: protocol
+        .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+        .trim();
+    } else if (typeof input === 'object' && input !== null && !Array.isArray(input)) {
+      const sanitized: Record<string, unknown> = {};
+      const inputObj = input as Record<string, unknown>;
+      for (const key in inputObj) {
+        if (Object.prototype.hasOwnProperty.call(inputObj, key)) {
+          sanitized[key] = this.sanitizeInput(inputObj[key]);
+        }
+      }
+      return sanitized;
+    } else {
+      return input;
+    }
+  }
+
+  /**
+   * Get security audit logs
+   */
+  getAuditLogs(severity?: string): SecurityAuditLog[] {
+    if (severity) {
+      return this.auditLogs.filter(log => log.severity === severity);
+    }
+    return [...this.auditLogs];
+  }
+
+  /**
+   * Clear old audit logs (keep last 1000 entries)
+   */
+  cleanupAuditLogs(): void {
+    if (this.auditLogs.length > 1000) {
+      this.auditLogs = this.auditLogs.slice(-1000);
+    }
+  }
+
+  /**
+   * Export security report
+   */
+  generateSecurityReport(): {
+    totalAttempts: number;
+    blockedIdentifiers: number;
+    securityEvents: { [key: string]: number };
+    highSeverityEvents: SecurityAuditLog[];
+  } {
+    const securityEvents: { [key: string]: number } = {};
+    
+    this.auditLogs.forEach(log => {
+      securityEvents[log.event] = (securityEvents[log.event] || 0) + 1;
+    });
+
+    return {
+      totalAttempts: Array.from(this.rateLimits.values()).reduce((sum, state) => sum + state.attempts, 0),
+      blockedIdentifiers: Array.from(this.rateLimits.values()).filter(state => state.blocked).length,
+      securityEvents,
+      highSeverityEvents: this.auditLogs.filter(log => ['high', 'critical'].includes(log.severity)),
+    };
+  }
+
+  return { valid: errors.length === 0, errors };
+  }
+
+  /**
+   * Detect potential brute force attacks
+   */
+  detectBruteForce(identifier: string, shareData: number[]): boolean {
+    // Check for systematic patterns in failed attempts
+    const recentLogs = this.auditLogs
+      .filter(log => log.timestamp > new Date(Date.now() - 60 * 60 * 1000).toISOString())
+      .filter(log => log.event === 'reconstruction_failure');
+
+    if (recentLogs.length > this.MAX_RECONSTRUCTION_ATTEMPTS) {
+      this.logSecurityEvent('brute_force_detected', 'critical', `Potential brute force attack from ${identifier}`);
+      return true;
+    }
+
+    // Check for low entropy patterns
+    const entropy = this.calculateEntropy(shareData);
+    if (entropy < 4.0) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private isValidTokenFormat(token: string): boolean {
+    try {
+      // Check if it's valid base64
+      const decoded = atob(token);
+      
+      // Check if decoded content is valid JSON
+      JSON.parse(decoded);
+      
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private isManipulatedShareData(shareData: number[]): boolean {
+    // Check for all zeros
+    if (shareData.every(byte => byte === 0)) {
+      return true;
+    }
+
+    // Check for all same value
+    if (shareData.every(byte => byte === shareData[0])) {
+      return true;
+    }
+
+    // Check for obvious patterns (ascending, descending)
+    const isAscending = shareData.every((byte, i) => i === 0 || byte >= shareData[i - 1]);
+    const isDescending = shareData.every((byte, i) => i === 0 || byte <= shareData[i - 1]);
+    
+    if (isAscending || isDescending) {
+      return true;
+    }
+
+    // Check for low entropy (too predictable)
+    const entropy = this.calculateEntropy(shareData);
+    if (entropy < 4.0) { // Threshold for suspiciously low entropy
+      return true;
+    }
+
+    return false;
+  }
+
+  private calculateEntropy(data: number[]): number {
+    const frequencies = new Map<number, number>();
+    
+    data.forEach(byte => {
+      frequencies.set(byte, (frequencies.get(byte) || 0) + 1);
+    });
+
+    let entropy = 0;
+    const length = data.length;
+
+    frequencies.forEach(count => {
+      const probability = count / length;
+      entropy -= probability * Math.log2(probability);
+    });
+
+    return entropy;
+  }
+
+  private logSecurityEvent(event: string, severity: 'low' | 'medium' | 'high' | 'critical', details: string): void {
+    const logEntry: SecurityAuditLog = {
+      timestamp: new Date().toISOString(),
+      event,
+      severity,
+      details,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+    };
+
+    this.auditLogs.push(logEntry);
+    
+    // Keep only recent logs to prevent memory issues
+    if (this.auditLogs.length > 1000) {
+      this.auditLogs = this.auditLogs.slice(-1000);
+    }
+
+    // Log critical events to console for immediate attention
+    if (severity === 'critical') {
+      console.error('CRITICAL SECURITY EVENT:', logEntry);
+    }
+  }
+}
+
+/**
+ * Utility functions for common security checks
+ */
+export const ShamirSecurity = {
+  /**
+   * Generate secure identifier for rate limiting
+   */
+  generateIdentifier(willId: string, userAgent?: string): string {
+    const base = `${willId}_${Date.now()}`;
+    if (userAgent) {
+      // Use a hash of user agent to avoid storing full UA string
+      const hash = Array.from(userAgent)
+        .reduce((hash, char) => ((hash << 5) - hash) + char.charCodeAt(0), 0)
+        .toString(36);
+      return `${base}_${hash}`;
+    }
+    return base;
+  },
+
+  /**
+   * Validate environment security
+   */
+  validateEnvironment(): { secure: boolean; warnings: string[] } {
+    const warnings: string[] = [];
+
+    // Check if running in secure context
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      warnings.push('Not running in secure context (HTTPS required)');
+    }
+
+    // Check for development tools
+    if (typeof window !== 'undefined' && (window as any).devtools?.open) {
+      warnings.push('Developer tools detected');
+    }
+
+    // Check for suspicious global variables
+    if (typeof window !== 'undefined') {
+      const suspiciousGlobals = ['__REACT_DEVTOOLS_GLOBAL_HOOK__', 'webpackJsonp'];
+      suspiciousGlobals.forEach(global => {
+        if ((window as any)[global]) {
+          warnings.push(`Suspicious global variable detected: ${global}`);
+        }
+      });
+    }
+
+    return {
+      secure: warnings.length === 0,
+      warnings,
+    };
+  },
+
+  /**
+   * Secure memory cleanup
+   */
+  secureCleanup(sensitiveData: Uint8Array | number[]): void {
+    if (sensitiveData instanceof Uint8Array) {
+      sensitiveData.fill(0);
+    } else if (Array.isArray(sensitiveData)) {
+      sensitiveData.fill(0);
+    }
+  },
+};

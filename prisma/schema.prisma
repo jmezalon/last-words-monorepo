@@ -130,6 +130,7 @@ model Beneficiary {
   user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   willBeneficiaries     WillBeneficiary[]
   releaseEvents         ReleaseEvent[]
+  shamirShares          ShamirShare[]
   
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -159,6 +160,12 @@ model Will {
   autoReleaseEnabled    Boolean @default(false)
   manualReleaseEnabled  Boolean @default(true)
   
+  // Shamir Secret Sharing configuration
+  shamirEnabled         Boolean @default(false)
+  shamirThreshold       Int?    // Always 2 for our 2-of-3 scheme
+  shamirTotalShares     Int?    // Always 3 for our implementation
+  shamirReleaseKeyHash  String? // SHA-256 hash for verification
+  
   // Status
   status                String  @default("DRAFT") // DRAFT, ACTIVE, RELEASED, REVOKED
   isActive              Boolean @default(true)
@@ -167,6 +174,7 @@ model Will {
   secrets               Secret[]
   willBeneficiaries     WillBeneficiary[]
   releaseEvents         ReleaseEvent[]
+  shamirShares          ShamirShare[]
   
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -329,6 +337,40 @@ model ReleaseEvent {
   @@index([eventType])
   @@index([status])
   @@index([createdAt])
+}
+
+model ShamirShare {
+  id                    String @id @default(cuid())
+  willId                String
+  beneficiaryId         String
+  
+  // Share data
+  shareIndex            Int     // 1, 2, or 3 for our 2-of-3 scheme
+  xCoordinate           Int     // X coordinate in finite field
+  encryptedShareData    String  // Encrypted share bytes (32 bytes for Release Key)
+  
+  // Metadata
+  distributionToken     String? @unique // Token for secure email distribution
+  isDistributed         Boolean @default(false)
+  distributedAt         DateTime?
+  isUsed                Boolean @default(false)
+  usedAt                DateTime?
+  
+  // Security
+  accessAttempts        Int     @default(0)
+  lastAccessAttempt     DateTime?
+  
+  will                  Will    @relation(fields: [willId], references: [id], onDelete: Cascade)
+  beneficiary           Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@unique([willId, shareIndex])
+  @@unique([willId, beneficiaryId])
+  @@index([willId])
+  @@index([beneficiaryId])
+  @@index([distributionToken])
 }
 
 model AuditLog {

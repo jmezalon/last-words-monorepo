@@ -6,12 +6,13 @@ import { AuthModule } from './auth/auth.module';
 import { WebAuthnModule } from './webauthn/webauthn.module';
 import { RepositoriesModule } from './repositories/repositories.module';
 import { ReleaseModule } from './release/release.module';
+import { ShamirModule } from './shamir/shamir.module';
 import { AuditService } from './services/audit.service';
 import { AuthGuard } from './common/guards/auth.guard';
 import { PrismaService } from './prisma/prisma.service';
 
 @Module({
-  imports: [AuthModule, WebAuthnModule, RepositoriesModule, ReleaseModule],
+  imports: [AuthModule, WebAuthnModule, RepositoriesModule, ReleaseModule, ShamirModule],
   controllers: [AppController],
   providers: [
     AppService,

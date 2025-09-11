@@ -1,6 +1,15 @@
 node_modules
 dist/
+*.d.ts
+*.js
+*.js.map
+coverage
+.nyc_output
+build
 **/*.d.ts
+**/*.js
 **/*.js.map
+**/dist/**
+**/build/**
 .env
 .env.local
