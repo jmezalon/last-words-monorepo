@@ -1,0 +1,307 @@
+{
+  "aws_waf_rules": {
+    "web_acl": {
+      "name": "LastWordsSecurityACL",
+      "description": "Comprehensive WAF rules for Last Words application",
+      "scope": "CLOUDFRONT",
+      "default_action": {
+        "allow": {}
+      },
+      "rules": [
+        {
+          "name": "AWSManagedRulesCommonRuleSet",
+          "priority": 1,
+          "override_action": {
+            "none": {}
+          },
+          "statement": {
+            "managed_rule_group_statement": {
+              "vendor_name": "AWS",
+              "name": "AWSManagedRulesCommonRuleSet"
+            }
+          },
+          "visibility_config": {
+            "sampled_requests_enabled": true,
+            "cloud_watch_metrics_enabled": true,
+            "metric_name": "CommonRuleSetMetric"
+          }
+        },
+        {
+          "name": "AWSManagedRulesKnownBadInputsRuleSet",
+          "priority": 2,
+          "override_action": {
+            "none": {}
+          },
+          "statement": {
+            "managed_rule_group_statement": {
+              "vendor_name": "AWS",
+              "name": "AWSManagedRulesKnownBadInputsRuleSet"
+            }
+          },
+          "visibility_config": {
+            "sampled_requests_enabled": true,
+            "cloud_watch_metrics_enabled": true,
+            "metric_name": "KnownBadInputsMetric"
+          }
+        },
+        {
+          "name": "AWSManagedRulesSQLiRuleSet",
+          "priority": 3,
+          "override_action": {
+            "none": {}
+          },
+          "statement": {
+            "managed_rule_group_statement": {
+              "vendor_name": "AWS",
+              "name": "AWSManagedRulesSQLiRuleSet"
+            }
+          },
+          "visibility_config": {
+            "sampled_requests_enabled": true,
+            "cloud_watch_metrics_enabled": true,
+            "metric_name": "SQLiRuleSetMetric"
+          }
+        },
+        {
+          "name": "RateLimitAPIEndpoints",
+          "priority": 10,
+          "action": {
+            "block": {}
+          },
+          "statement": {
+            "rate_based_statement": {
+              "limit": 2000,
+              "aggregate_key_type": "IP",
+              "scope_down_statement": {
+                "byte_match_statement": {
+                  "search_string": "/api/",
+                  "field_to_match": {
+                    "uri_path": {}
+                  },
+                  "text_transformations": [
+                    {
+                      "priority": 0,
+                      "type": "LOWERCASE"
+                    }
+                  ],
+                  "positional_constraint": "STARTS_WITH"
+                }
+              }
+            }
+          },
+          "visibility_config": {
+            "sampled_requests_enabled": true,
+            "cloud_watch_metrics_enabled": true,
+            "metric_name": "APIRateLimitMetric"
+          }
+        },
+        {
+          "name": "RateLimitAuthEndpoints",
+          "priority": 11,
+          "action": {
+            "block": {}
+          },
+          "statement": {
+            "rate_based_statement": {
+              "limit": 100,
+              "aggregate_key_type": "IP",
+              "scope_down_statement": {
+                "byte_match_statement": {
+                  "search_string": "/api/auth",
+                  "field_to_match": {
+                    "uri_path": {}
+                  },
+                  "text_transformations": [
+                    {
+                      "priority": 0,
+                      "type": "LOWERCASE"
+                    }
+                  ],
+                  "positional_constraint": "STARTS_WITH"
+                }
+              }
+            }
+          },
+          "visibility_config": {
+            "sampled_requests_enabled": true,
+            "cloud_watch_metrics_enabled": true,
+            "metric_name": "AuthRateLimitMetric"
+          }
+        },
+        {
+          "name": "BlockShamirAbuse",
+          "priority": 12,
+          "action": {
+            "block": {}
+          },
+          "statement": {
+            "rate_based_statement": {
+              "limit": 10,
+              "aggregate_key_type": "IP",
+              "scope_down_statement": {
+                "and_statement": {
+                  "statements": [
+                    {
+                      "byte_match_statement": {
+                        "search_string": "/api/shamir",
+                        "field_to_match": {
+                          "uri_path": {}
+                        },
+                        "text_transformations": [
+                          {
+                            "priority": 0,
+                            "type": "LOWERCASE"
+                          }
+                        ],
+                        "positional_constraint": "STARTS_WITH"
+                      }
+                    },
+                    {
+                      "byte_match_statement": {
+                        "search_string": "POST",
+                        "field_to_match": {
+                          "method": {}
+                        },
+                        "text_transformations": [
+                          {
+                            "priority": 0,
+                            "type": "NONE"
+                          }
+                        ],
+                        "positional_constraint": "EXACTLY"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "visibility_config": {
+            "sampled_requests_enabled": true,
+            "cloud_watch_metrics_enabled": true,
+            "metric_name": "ShamirAbuseMetric"
+          }
+        },
+        {
+          "name": "BlockReleaseAbuse",
+          "priority": 13,
+          "action": {
+            "block": {}
+          },
+          "statement": {
+            "rate_based_statement": {
+              "limit": 5,
+              "aggregate_key_type": "IP",
+              "scope_down_statement": {
+                "and_statement": {
+                  "statements": [
+                    {
+                      "byte_match_statement": {
+                        "search_string": "/api/release",
+                        "field_to_match": {
+                          "uri_path": {}
+                        },
+                        "text_transformations": [
+                          {
+                            "priority": 0,
+                            "type": "LOWERCASE"
+                          }
+                        ],
+                        "positional_constraint": "STARTS_WITH"
+                      }
+                    },
+                    {
+                      "byte_match_statement": {
+                        "search_string": "POST",
+                        "field_to_match": {
+                          "method": {}
+                        },
+                        "text_transformations": [
+                          {
+                            "priority": 0,
+                            "type": "NONE"
+                          }
+                        ],
+                        "positional_constraint": "EXACTLY"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "visibility_config": {
+            "sampled_requests_enabled": true,
+            "cloud_watch_metrics_enabled": true,
+            "metric_name": "ReleaseAbuseMetric"
+          }
+        },
+        {
+          "name": "BlockLargeRequests",
+          "priority": 20,
+          "action": {
+            "block": {}
+          },
+          "statement": {
+            "size_constraint_statement": {
+              "field_to_match": {
+                "body": {}
+              },
+              "comparison_operator": "GT",
+              "size": 10485760,
+              "text_transformations": [
+                {
+                  "priority": 0,
+                  "type": "NONE"
+                }
+              ]
+            }
+          },
+          "visibility_config": {
+            "sampled_requests_enabled": true,
+            "cloud_watch_metrics_enabled": true,
+            "metric_name": "LargeRequestMetric"
+          }
+        },
+        {
+          "name": "GeoBlockHighRiskCountries",
+          "priority": 30,
+          "action": {
+            "block": {}
+          },
+          "statement": {
+            "geo_match_statement": {
+              "country_codes": ["CN", "RU", "KP", "IR"]
+            }
+          },
+          "visibility_config": {
+            "sampled_requests_enabled": true,
+            "cloud_watch_metrics_enabled": true,
+            "metric_name": "GeoBlockMetric"
+          }
+        }
+      ],
+      "visibility_config": {
+        "sampled_requests_enabled": true,
+        "cloud_watch_metrics_enabled": true,
+        "metric_name": "LastWordsWAFMetric"
+      }
+    }
+  },
+  "ip_sets": {
+    "admin_allowlist": {
+      "name": "AdminIPAllowlist",
+      "description": "Allowed IP addresses for admin access",
+      "scope": "CLOUDFRONT",
+      "ip_address_version": "IPV4",
+      "addresses": ["203.0.113.0/24", "198.51.100.0/24"]
+    },
+    "known_bad_ips": {
+      "name": "KnownBadIPs",
+      "description": "Known malicious IP addresses",
+      "scope": "CLOUDFRONT",
+      "ip_address_version": "IPV4",
+      "addresses": []
+    }
+  }
+}

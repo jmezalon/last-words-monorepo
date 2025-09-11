@@ -1,0 +1,190 @@
+{
+  "waf_rules": [
+    {
+      "name": "Bot Throttling - Aggressive Bots",
+      "description": "Block aggressive bots and scrapers",
+      "expression": "(cf.bot_management.score lt 30) or (http.user_agent contains \"bot\" and not cf.bot_management.verified_bot) or (http.user_agent contains \"crawler\" and not cf.bot_management.verified_bot) or (http.user_agent contains \"spider\" and not cf.bot_management.verified_bot)",
+      "action": "block",
+      "enabled": true,
+      "priority": 1
+    },
+    {
+      "name": "Rate Limiting - API Endpoints",
+      "description": "Rate limit API calls to prevent abuse",
+      "expression": "(http.request.uri.path matches \"^/api/.*\")",
+      "action": "rate_limit",
+      "rate_limit": {
+        "threshold": 100,
+        "period": 60,
+        "action": "challenge"
+      },
+      "enabled": true,
+      "priority": 2
+    },
+    {
+      "name": "Authentication Endpoint Protection",
+      "description": "Strict rate limiting for auth endpoints",
+      "expression": "(http.request.uri.path matches \"^/api/(auth|login|register|webauthn).*\")",
+      "action": "rate_limit",
+      "rate_limit": {
+        "threshold": 10,
+        "period": 60,
+        "action": "block"
+      },
+      "enabled": true,
+      "priority": 3
+    },
+    {
+      "name": "Crypto Operations Protection",
+      "description": "Enhanced protection for crypto endpoints",
+      "expression": "(http.request.uri.path matches \"^/api/(crypto|shamir|release).*\")",
+      "action": "rate_limit",
+      "rate_limit": {
+        "threshold": 20,
+        "period": 60,
+        "action": "challenge"
+      },
+      "enabled": true,
+      "priority": 4
+    },
+    {
+      "name": "Suspicious User Agents",
+      "description": "Block known malicious user agents",
+      "expression": "(http.user_agent contains \"sqlmap\") or (http.user_agent contains \"nmap\") or (http.user_agent contains \"nikto\") or (http.user_agent contains \"masscan\") or (http.user_agent eq \"\")",
+      "action": "block",
+      "enabled": true,
+      "priority": 5
+    },
+    {
+      "name": "Geographic Restrictions",
+      "description": "Challenge requests from high-risk countries",
+      "expression": "(ip.geoip.country in {\"CN\" \"RU\" \"KP\" \"IR\"})",
+      "action": "challenge",
+      "enabled": false,
+      "priority": 6,
+      "note": "Enable based on your user base requirements"
+    },
+    {
+      "name": "SQL Injection Protection",
+      "description": "Block common SQL injection patterns",
+      "expression": "(http.request.uri.query contains \"union select\") or (http.request.uri.query contains \"drop table\") or (http.request.uri.query contains \"insert into\") or (http.request.body.raw contains \"union select\") or (http.request.body.raw contains \"drop table\")",
+      "action": "block",
+      "enabled": true,
+      "priority": 7
+    },
+    {
+      "name": "XSS Protection",
+      "description": "Block cross-site scripting attempts",
+      "expression": "(http.request.uri.query contains \"<script\") or (http.request.uri.query contains \"javascript:\") or (http.request.body.raw contains \"<script\") or (http.request.body.raw contains \"javascript:\")",
+      "action": "block",
+      "enabled": true,
+      "priority": 8
+    },
+    {
+      "name": "Path Traversal Protection",
+      "description": "Block directory traversal attempts",
+      "expression": "(http.request.uri.path contains \"../\") or (http.request.uri.path contains \"..\\\\\")",
+      "action": "block",
+      "enabled": true,
+      "priority": 9
+    },
+    {
+      "name": "Admin Path Protection",
+      "description": "Block access to admin paths",
+      "expression": "(http.request.uri.path matches \"^/(admin|wp-admin|phpmyadmin|administrator).*\")",
+      "action": "block",
+      "enabled": true,
+      "priority": 10
+    },
+    {
+      "name": "Large Request Body Protection",
+      "description": "Block unusually large request bodies",
+      "expression": "(http.request.body.size gt 10485760)",
+      "action": "block",
+      "enabled": true,
+      "priority": 11,
+      "note": "10MB limit - adjust based on your needs"
+    },
+    {
+      "name": "DDoS Protection - Connection Flood",
+      "description": "Protect against connection flooding",
+      "expression": "(cf.threat_score gt 50)",
+      "action": "challenge",
+      "enabled": true,
+      "priority": 12
+    }
+  ],
+  "allowed_paths": [
+    {
+      "name": "Health Check Allowlist",
+      "description": "Allow health check endpoints",
+      "expression": "(http.request.uri.path eq \"/health\") or (http.request.uri.path eq \"/api/health\")",
+      "action": "allow",
+      "enabled": true,
+      "priority": 0
+    },
+    {
+      "name": "Static Assets Allowlist",
+      "description": "Allow static assets with minimal restrictions",
+      "expression": "(http.request.uri.path matches \"^/(_next/static|favicon\\.ico|robots\\.txt|sitemap\\.xml).*\")",
+      "action": "allow",
+      "enabled": true,
+      "priority": 1
+    },
+    {
+      "name": "Public API Endpoints",
+      "description": "Allow public API endpoints with standard rate limiting",
+      "expression": "(http.request.uri.path matches \"^/api/(public|status|version).*\")",
+      "action": "allow",
+      "rate_limit": {
+        "threshold": 1000,
+        "period": 60
+      },
+      "enabled": true,
+      "priority": 2
+    }
+  ],
+  "custom_rules": [
+    {
+      "name": "Shamir Share Access Protection",
+      "description": "Enhanced protection for Shamir share operations",
+      "expression": "(http.request.uri.path matches \"^/api/shamir.*\") and (http.request.method eq \"POST\")",
+      "action": "rate_limit",
+      "rate_limit": {
+        "threshold": 5,
+        "period": 300,
+        "action": "block"
+      },
+      "enabled": true,
+      "priority": 1,
+      "note": "Very strict limits for share operations - 5 attempts per 5 minutes"
+    },
+    {
+      "name": "Release Key Access Protection",
+      "description": "Ultra-strict protection for release operations",
+      "expression": "(http.request.uri.path matches \"^/api/release.*\") and (http.request.method eq \"POST\")",
+      "action": "rate_limit",
+      "rate_limit": {
+        "threshold": 3,
+        "period": 600,
+        "action": "block"
+      },
+      "enabled": true,
+      "priority": 2,
+      "note": "Extremely strict limits for release operations - 3 attempts per 10 minutes"
+    },
+    {
+      "name": "WebAuthn Challenge Protection",
+      "description": "Protect WebAuthn challenge endpoints",
+      "expression": "(http.request.uri.path matches \"^/api/webauthn.*\")",
+      "action": "rate_limit",
+      "rate_limit": {
+        "threshold": 15,
+        "period": 60,
+        "action": "challenge"
+      },
+      "enabled": true,
+      "priority": 3
+    }
+  ]
+}
