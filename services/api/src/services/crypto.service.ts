@@ -2,7 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkingSecretRepository } from '../repositories/working-secret.repository';
 import { WorkingUserRepository } from '../repositories/working-user.repository';
-import { WorkingWillRepository } from '../repositories/working-will.repository';
+// import { WorkingWillRepository } from '../repositories/will.repository';
 import * as crypto from 'crypto';
 
 export interface EncryptedSecretData {

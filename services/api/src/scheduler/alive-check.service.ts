@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkingUserRepository } from '../repositories/working-user.repository';
+import { TokenService } from './token.service';
 
 export interface AliveCheckJobData {
   userId: string;
@@ -22,6 +23,7 @@ export class AliveCheckService {
     @InjectQueue('alive-check') private aliveCheckQueue: Queue,
     private prisma: PrismaService,
     private userRepository: WorkingUserRepository,
+    private tokenService: TokenService,
   ) {}
 
   /**
@@ -203,10 +205,16 @@ export class AliveCheckService {
   /**
    * Verify alive check token
    */
-  private async verifyAliveToken(token: string): Promise<{ userId: string; checkDate: Date } | null> {
+  private async verifyAliveToken(token: string): Promise<{ userId: string; checkId: string } | null> {
     // TODO: Implement token verification using TokenService
     // This should decode and verify the signed JWT token
-    return null;
+    try {
+      const decoded = await this.tokenService.verifyAliveCheckToken(token);
+      return decoded;
+    } catch (error) {
+      this.logger.error('Failed to verify alive token:', error);
+      return null;
+    }
   }
 
   /**

@@ -15,7 +15,7 @@ const mockPrismaService = {
 
 describe('WebAuthnService', () => {
   let service: WebAuthnService;
-  let prisma: PrismaService;
+  // let _prisma: PrismaService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -29,7 +29,7 @@ describe('WebAuthnService', () => {
     }).compile();
 
     service = module.get<WebAuthnService>(WebAuthnService);
-    prisma = module.get<PrismaService>(PrismaService);
+    // const _prisma = mockDeep<PrismaClient>();
   });
 
   afterEach(() => {
