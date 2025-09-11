@@ -30,6 +30,7 @@ export function combineKeys(
   // XOR with release key to get master key
   const masterKey = new Uint8Array(32);
   for (let i = 0; i < 32; i++) {
+    // eslint-disable-next-line security/detect-object-injection
     masterKey[i] = combinedKey[i] ^ releaseKey[i];
   }
 

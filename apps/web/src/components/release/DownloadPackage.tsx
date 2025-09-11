@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-// Crypto functions imported in release-crypto
+import React, { useState } from 'react';
+
+import { createSecureDownloadPackage } from '@/lib/release-crypto';
 
 interface DecryptedSecret {
   id: string;
@@ -40,23 +41,17 @@ export function DownloadPackage({ secrets }: DownloadPackageProps) {
         throw new Error('Download password must be at least 8 characters');
       }
 
-      // Create encrypted package locally first
-      const packageData = {
-        metadata: {
-          exportedAt: new Date().toISOString(),
-          totalSecrets: secrets.length,
-          categories: [...new Set(secrets.map(s => s.category).filter(Boolean))],
-        },
-        secrets: secrets.map(secret => ({
-          id: secret.id,
-          title: secret.title,
-          description: secret.description,
-          category: secret.category,
-          tags: secret.tags,
-          content: secret.content,
-          createdAt: secret.createdAt,
-        })),
-      };
+      // Create encrypted package using the release crypto library
+      const packageData = await createSecureDownloadPackage(secrets, downloadPassword);
+      
+      // Create download URL
+      const blob = new Blob([JSON.stringify(packageData)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      setDownloadUrl(url);
+      
+      // Set expiration time (24 hours from now)
+      const expirationTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      setExpiresAt(expirationTime.toLocaleString());
 
       // Generate download package via API
       const response = await fetch('/api/release/download', {

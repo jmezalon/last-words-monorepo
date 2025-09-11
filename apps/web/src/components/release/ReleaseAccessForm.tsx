@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { deriveUserKey, unwrapCIK, decryptPayload } from '@/lib/crypto';
+import React, { useState } from 'react';
+
+import { decryptAllSecrets } from '@/lib/release-crypto';
 
 interface ReleaseAccessFormProps {
   willId: string;
@@ -73,48 +74,15 @@ export function ReleaseAccessForm({ willId, beneficiaryId, onAccessGranted }: Re
 
       const releaseData: ReleaseKeyResponse = await response.json();
       
-      // Derive Release Key (RK) from passphrase (client-side verification)
-      const releaseKey = await deriveUserKey(passphrase, 'release-salt-' + willId);
-      
-      // Decode combined key (MK⊕RK)
-      const combinedKeyBytes = new Uint8Array(
-        atob(releaseData.combinedKey)
-          .split('')
-          .map(c => c.charCodeAt(0))
-      );
+      // Keys are combined server-side, we get the combined key directly
 
-      // Decrypt all secrets
-      const decryptedSecrets: DecryptedSecret[] = [];
-      
-      for (const secret of releaseData.secrets) {
-        try {
-          // For now, we'll use the encrypted content directly since the schema doesn't have proper CIK fields
-          // In production, this would unwrap the CIK and decrypt the content
-          const decryptedContent = secret.ciphertext || 'Content not available';
-          
-          decryptedSecrets.push({
-            id: secret.id,
-            title: secret.title || 'Untitled Secret',
-            description: secret.description,
-            category: secret.category,
-            tags: secret.tags || [],
-            content: decryptedContent,
-            createdAt: secret.createdAt,
-          });
-        } catch (decryptError) {
-          console.error('Failed to decrypt secret:', secret.id, decryptError);
-          // Include failed secrets with error message
-          decryptedSecrets.push({
-            id: secret.id,
-            title: secret.title || 'Untitled Secret',
-            description: secret.description,
-            category: secret.category,
-            tags: secret.tags || [],
-            content: '[Decryption failed - content unavailable]',
-            createdAt: secret.createdAt,
-          });
-        }
-      }
+      // Decrypt all secrets using the release crypto library
+      const decryptedSecrets = await decryptAllSecrets(
+        releaseData.secrets,
+        releaseData.combinedKey,
+        passphrase,
+        willId
+      );
 
       onAccessGranted(decryptedSecrets, releaseData.combinedKey);
     } catch (err) {

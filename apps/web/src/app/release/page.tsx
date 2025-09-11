@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+
 import { ReleaseAccessForm } from '@/components/release/ReleaseAccessForm';
 import { SecretsList } from '@/components/release/SecretsList';
 import { DownloadPackage } from '@/components/release/DownloadPackage';
@@ -20,7 +21,7 @@ export default function ReleasePage() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<'access' | 'secrets' | 'download'>('access');
   const [secrets, setSecrets] = useState<DecryptedSecret[]>([]);
-  const [combinedKey, setCombinedKey] = useState<string>('');
+  const [, setCombinedKey] = useState<string>('');
 
   // Get URL parameters for beneficiary access
   const willId = searchParams.get('willId');
@@ -121,7 +122,6 @@ export default function ReleasePage() {
             {step === 'download' && (
               <DownloadPackage
                 secrets={secrets}
-                combinedKey={combinedKey}
               />
             )}
           </div>
