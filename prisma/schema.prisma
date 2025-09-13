@@ -375,33 +375,35 @@ model ShamirShare {
 
 model AuditLog {
   id                    String @id @default(cuid())
+  timestamp             DateTime @default(now())
   userId                String?
-  
-  // Action details
-  action                String // create_will, update_secret, release_triggered, etc.
-  entityType            String // will, secret, beneficiary, user
-  entityId              String?
-  
-  // Event context (encrypted)
-  encryptedDetails      String? // Detailed action information
-  
-  // Request metadata
-  ipAddress             String?
-  userAgent             String?
   sessionId             String?
   
-  // Risk and security
-  riskLevel             String @default("LOW") // LOW, MEDIUM, HIGH, CRITICAL
-  flagged               Boolean @default(false)
+  // Operation details
+  operation             String // authentication, cryptography, shamir_secret_sharing, etc.
+  resource              String // user_session, crypto_service, will_document, etc.
+  action                String // login, encrypt, distribute, access, etc.
+  result                String // success, failure, error
+  
+  // Event context
+  details               Json? // Additional event information
+  ipAddress             String?
+  userAgent             String?
+  duration              Int? // Operation duration in milliseconds
+  errorCode             String?
+  errorMessage          String?
+  
+  // Chain hashing for integrity
+  previousHash          String? // Hash of previous audit entry
+  hash                  String // Hash of this entry including previousHash
   
   user                  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
   
-  createdAt             DateTime @default(now())
-  
   @@index([userId])
+  @@index([operation])
+  @@index([resource])
   @@index([action])
-  @@index([entityType, entityId])
-  @@index([riskLevel])
-  @@index([flagged])
-  @@index([createdAt])
+  @@index([result])
+  @@index([timestamp])
+  @@index([hash])
 }

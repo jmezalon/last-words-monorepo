@@ -1,6 +1,6 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { EmailService } from '../scheduler/email.service';
+// import { EmailService } from '../scheduler/email.service';
 import { CryptoService } from '../services/crypto.service';
 import * as crypto from 'crypto';
 
@@ -24,7 +24,7 @@ export class ShamirService {
 
   constructor(
     private prisma: PrismaService,
-    private emailService: EmailService,
+    // private emailService: EmailService,
     private cryptoService: CryptoService,
   ) {}
 
@@ -359,11 +359,12 @@ export class ShamirService {
       <p>If you have any questions or concerns, please contact our support team.</p>
     `;
 
-    await this.emailService.sendEmail({
-      to: beneficiary.email, // This would need to be decrypted in production
-      subject: `Shamir Secret Share - Digital Legacy Access Required`,
-      html: emailContent,
-    });
+    // await this.emailService.sendEmail({
+    //   to: beneficiary.email, // This would need to be decrypted in production
+    //   subject: `Shamir Secret Share - Digital Legacy Access Required`,
+    //   html: emailContent,
+    // });
+    console.log('Email would be sent to beneficiary with share data');
 
     // Mark as distributed
     await this.prisma.shamirShare.updateMany({

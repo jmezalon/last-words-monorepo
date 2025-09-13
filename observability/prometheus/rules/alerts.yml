@@ -1,0 +1,138 @@
+groups:
+  - name: last-words-api
+    rules:
+      # High error rate alert
+      - alert: HighErrorRate
+        expr: (rate(http_requests_total{job="last-words-api",code=~"5.."}[5m]) / rate(http_requests_total{job="last-words-api"}[5m])) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+          service: last-words-api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }}% for {{ $labels.job }}"
+
+      # High latency alert
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="last-words-api"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: last-words-api
+        annotations:
+          summary: "High latency detected"
+          description: "95th percentile latency is {{ $value }}s for {{ $labels.job }}"
+
+      # Release attempt spike
+      - alert: ReleaseAttemptSpike
+        expr: rate(http_requests_total{job="last-words-api",endpoint=~"/api/release/.*"}[5m]) > 0.5
+        for: 1m
+        labels:
+          severity: critical
+          service: last-words-api
+        annotations:
+          summary: "Unusual release attempt activity"
+          description: "Release attempts spiking at {{ $value }} requests/second"
+
+      # Authentication failure spike
+      - alert: AuthFailureSpike
+        expr: rate(http_requests_total{job="last-words-api",endpoint=~"/api/auth/.*",code=~"4.."}[5m]) > 0.2
+        for: 2m
+        labels:
+          severity: high
+          service: last-words-api
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Auth failures at {{ $value }} requests/second - possible attack"
+
+      # Crypto operation failures
+      - alert: CryptoOperationFailures
+        expr: rate(http_requests_total{job="last-words-api",endpoint=~"/api/crypto/.*",code=~"5.."}[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+          service: last-words-api
+        annotations:
+          summary: "Crypto operation failures detected"
+          description: "Crypto operations failing at {{ $value }} requests/second"
+
+      # Shamir operation anomalies
+      - alert: ShamirOperationAnomalies
+        expr: rate(http_requests_total{job="last-words-api",endpoint=~"/api/shamir/.*"}[10m]) > 0.05
+        for: 5m
+        labels:
+          severity: high
+          service: last-words-api
+        annotations:
+          summary: "Unusual Shamir operation activity"
+          description: "Shamir operations at {{ $value }} requests/second - investigate"
+
+  - name: last-words-system
+    rules:
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}%"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}%"
+
+      # Disk space low
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is {{ $value }}% available"
+
+  - name: last-words-audit
+    rules:
+      # Audit chain integrity failure
+      - alert: AuditChainIntegrityFailure
+        expr: audit_chain_validation_failures_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          service: audit
+        annotations:
+          summary: "Audit chain integrity compromised"
+          description: "{{ $value }} audit chain validation failures detected"
+
+      # High audit log volume
+      - alert: HighAuditLogVolume
+        expr: rate(audit_entries_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          service: audit
+        annotations:
+          summary: "High audit log volume"
+          description: "Audit entries being created at {{ $value }} entries/second"
+
+      # Suspicious user activity
+      - alert: SuspiciousUserActivity
+        expr: rate(audit_entries_total{result="failure"}[5m]) > 0.5
+        for: 1m
+        labels:
+          severity: high
+          service: security
+        annotations:
+          summary: "Suspicious user activity detected"
+          description: "High failure rate detected: {{ $value }} failed operations/second"

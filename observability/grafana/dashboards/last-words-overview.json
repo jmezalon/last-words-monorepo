@@ -1,0 +1,322 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Last Words - System Overview",
+    "tags": ["last-words", "overview"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Request Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job=\"last-words-api\"}[5m])",
+            "legendFormat": "Requests/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "displayMode": "list",
+              "orientation": "horizontal"
+            },
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 10
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Error Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(rate(http_requests_total{job=\"last-words-api\",code=~\"5..\"}[5m]) / rate(http_requests_total{job=\"last-words-api\"}[5m])) * 100",
+            "legendFormat": "Error %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "red",
+                  "value": 5
+                }
+              ]
+            },
+            "unit": "percent"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Response Time (P95)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"last-words-api\"}[5m]))",
+            "legendFormat": "P95 Latency"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "red",
+                  "value": 2
+                }
+              ]
+            },
+            "unit": "s"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 4,
+        "title": "Active Users",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "active_sessions_total",
+            "legendFormat": "Active Sessions"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        }
+      },
+      {
+        "id": 5,
+        "title": "Request Volume by Endpoint",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job=\"last-words-api\"}[5m])",
+            "legendFormat": "{{ method }} {{ endpoint }}"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Requests/sec",
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 6,
+        "title": "Security Events",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(security_events_total[5m])",
+            "legendFormat": "{{ severity }} - {{ event_type }}"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [0.1],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "1m",
+          "frequency": "10s",
+          "handler": 1,
+          "name": "Security Events Alert",
+          "noDataState": "no_data",
+          "notifications": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      },
+      {
+        "id": 7,
+        "title": "Crypto Operations",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(crypto_operations_total[5m])",
+            "legendFormat": "{{ operation }} - {{ result }}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 16
+        }
+      },
+      {
+        "id": 8,
+        "title": "Release Attempts",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(release_attempts_total[5m])",
+            "legendFormat": "{{ result }}"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [0.5],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "1m",
+          "frequency": "10s",
+          "handler": 1,
+          "name": "Release Attempt Spike",
+          "noDataState": "no_data"
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 8,
+          "y": 16
+        }
+      },
+      {
+        "id": 9,
+        "title": "Audit Log Volume",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(audit_entries_total[5m])",
+            "legendFormat": "{{ operation }}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 16,
+          "y": 16
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "refresh": "5s",
+    "schemaVersion": 27,
+    "version": 0,
+    "links": []
+  }
+}
